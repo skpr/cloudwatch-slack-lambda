@@ -27,6 +27,10 @@ func PostMessage(config util.Config, alarm, reason string) error {
 				Elements: []BlockElement{
 					{
 						Type: BlockElementTypeMarkdown,
+						Text: aws.String(fmt.Sprintf("*Cluster* = %s", config.ClusterName)),
+					},
+					{
+						Type: BlockElementTypeMarkdown,
 						Text: aws.String(fmt.Sprintf("*Alarm* = %s", alarm)),
 					},
 				},

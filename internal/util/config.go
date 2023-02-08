@@ -8,12 +8,17 @@ import (
 
 // Config used by this application.
 type Config struct {
+	ClusterName     string   `mapstructure:"SKPR_CLUSTER_NAME"`
 	SlackWebhookURL []string `mapstructure:"SLACK_WEBHOOK_URL"`
 }
 
 // Validate validates the config.
 func (c Config) Validate() []string {
 	var errors []string
+
+	if c.ClusterName == "" {
+		errors = append(errors, "SKPR_CLUSTER_NAME is a required variable")
+	}
 
 	if len(c.SlackWebhookURL) == 0 {
 		errors = append(errors, "SLACK_WEBHOOK_URL is a required variable")
