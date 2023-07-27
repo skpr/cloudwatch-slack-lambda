@@ -19,7 +19,7 @@ func PostMessage(config util.Config, alarm, reason string) error {
 				Type: BlockTypeHeader,
 				Text: &BlockText{
 					Type: BlockTextTypePlainText,
-					Text: ":alert: CloudWatch Alarm Triggered :alert:",
+					Text: ":cloudwatch: CloudWatch Alarm Triggered",
 				},
 			},
 			{
