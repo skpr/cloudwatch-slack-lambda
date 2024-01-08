@@ -11,8 +11,15 @@ import (
 	"github.com/skpr/cloudwatch-slack-lambda/internal/util"
 )
 
+// PostMessageParams are the parameters required to post a message to Slack.
+type PostMessageParams struct {
+	AlarmName   string
+	Description string
+	Reason      string
+}
+
 // PostMessage to Slack channel.
-func PostMessage(config util.Config, alarm, reason string) error {
+func PostMessage(config util.Config, params PostMessageParams) error {
 	message := Message{
 		Blocks: []Block{
 			{
@@ -31,7 +38,7 @@ func PostMessage(config util.Config, alarm, reason string) error {
 					},
 					{
 						Type: BlockElementTypeMarkdown,
-						Text: aws.String(fmt.Sprintf("*Alarm* = %s", alarm)),
+						Text: aws.String(fmt.Sprintf("*Alarm* = %s", params.AlarmName)),
 					},
 				},
 			},
@@ -39,7 +46,14 @@ func PostMessage(config util.Config, alarm, reason string) error {
 				Type: BlockTypeSection,
 				Text: &BlockText{
 					Type: BlockTextTypeMarkdown,
-					Text: reason,
+					Text: params.Description,
+				},
+			},
+			{
+				Type: BlockTypeSection,
+				Text: &BlockText{
+					Type: BlockTextTypeMarkdown,
+					Text: params.Reason,
 				},
 			},
 		},
