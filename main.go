@@ -37,12 +37,22 @@ func HandleLambdaEvent(ctx context.Context, event *cloudwatch.Event) error {
 		return fmt.Errorf("configuration error: %s", strings.Join(errs, "\n"))
 	}
 
+	log.Println("Querying Alarm for Additional Context")
+
+	// @todo, Get Alarm details from CloudWatch API.
+
 	log.Println("Sending Slack message")
 
-	err = slack.PostMessage(config, slack.PostMessageParams{
-		AlarmName:   event.AlarmData.AlarmName,
-		Description: event.AlarmData.Configuration.Description,
-		Reason:      event.AlarmData.State.Reason,
+	err = slack.PostMessage(slack.PostMessageParams{
+		Webhooks:      config.SlackWebhookURL,
+		Cluster:       config.ClusterName,
+		Project:       "", // @todo
+		Environment:   "", // @todo
+		Description:   event.AlarmData.Configuration.Description,
+		Reason:        event.AlarmData.State.Reason,
+		Dashboard:     "", // @todo
+		Documentation: "", // @todo
+		Image:         "", // @todo
 	})
 	if err != nil {
 		return fmt.Errorf("failed to post Slack message: %w", err)

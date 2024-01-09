@@ -1,34 +1,22 @@
 package slack
 
-type Message struct {
-	Blocks []Block `json:"blocks"`
-}
-
 type BlockType string
 
 const (
 	BlockTypeContext BlockType = "context"
 	BlockTypeSection BlockType = "section"
-	BlockTypeHeader  BlockType = "header"
+	BlockTypeDivider BlockType = "divider"
+	BlockTypeActions BlockType = "actions"
 )
-
-type Block struct {
-	Type     BlockType      `json:"type"`
-	Elements []BlockElement `json:"elements,omitempty"`
-	Text     *BlockText     `json:"text,omitempty"`
-}
 
 type BlockElementType string
 
 const (
 	// BlockElementTypeMarkdown used to declare a block as markdown.
 	BlockElementTypeMarkdown BlockElementType = "mrkdwn"
+	BlockElementTypeButton   BlockElementType = "button"
+	BlockElementTypeImage    BlockElementType = "image"
 )
-
-type BlockElement struct {
-	Type BlockElementType `json:"type"`
-	Text *string          `json:"text,omitempty"`
-}
 
 type BlockTextType string
 
@@ -39,7 +27,37 @@ const (
 	BlockTextTypePlainText BlockTextType = "plain_text"
 )
 
-type BlockText struct {
+type Message struct {
+	Blocks []interface{} `json:"blocks"`
+}
+
+type BlockContext struct {
+	Type     BlockType             `json:"type"`
+	Elements []BlockContextElement `json:"elements"`
+}
+
+type BlockContextElement struct {
+	Type BlockElementType `json:"type"`
+	Text string           `json:"text"`
+}
+
+type BlockDivider struct {
+	Type BlockType `json:"type"`
+}
+
+type BlockSection struct {
+	Type      BlockType              `json:"type"`
+	Text      BlockSectionText       `json:"text"`
+	Accessory *BlockSectionAccessory `json:"accessory,omitempty"`
+}
+
+type BlockSectionAccessory struct {
+	Type     BlockElementType `json:"type"`
+	ImageURL string           `json:"image_url"`
+	AltText  string           `json:"alt_text"`
+}
+
+type BlockSectionText struct {
 	Type BlockTextType `json:"type"`
 	Text string        `json:"text"`
 }
