@@ -119,14 +119,26 @@ func (c *Client) PostMessage(params PostMessageParams) error {
 	var links []string
 
 	if params.Dashboard != "" {
-		links = append(links, fmt.Sprintf("<%s|:skpr_dashboard: Go to Dashboard>", params.Dashboard))
+		links = append(links, fmt.Sprintf("<%s|:skpr_dashboard: Review with Dashboard>", params.Dashboard))
 	}
 
 	if params.Documentation != "" {
-		links = append(links, fmt.Sprintf("<%s|:skpr_documentation: Go to Documentation>", params.Documentation))
+		links = append(links, fmt.Sprintf("<%s|:skpr_documentation: Triage using Documentation>", params.Documentation))
 	}
 
 	if len(links) > 0 {
+		message.Blocks = append(message.Blocks, BlockDivider{
+			Type: BlockTypeDivider,
+		})
+
+		message.Blocks = append(message.Blocks, BlockSection{
+			Type: BlockTypeSection,
+			Text: BlockSectionText{
+				Type: BlockTextTypeMarkdown,
+				Text: "*Next Steps:*",
+			},
+		})
+
 		message.Blocks = append(message.Blocks, BlockSection{
 			Type: BlockTypeSection,
 			Text: BlockSectionText{
