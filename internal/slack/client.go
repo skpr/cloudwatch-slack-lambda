@@ -18,3 +18,15 @@ func NewClient(webhooks []string) (*Client, error) {
 
 	return client, nil
 }
+
+// MockClient for testing purposes.
+type MockClient struct {
+	PostMessageParams PostMessageParams
+}
+
+// PostMessage mocks the Slack API.
+func (m *MockClient) PostMessage(params PostMessageParams) error {
+	// Store the parameters so we can check them in our tests.
+	m.PostMessageParams = params
+	return nil
+}
