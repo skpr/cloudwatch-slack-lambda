@@ -1,22 +1,24 @@
 package cloudwatch
 
-// EventDetail used to check the previous and current state of the CloudWatch Alarm.
-type EventDetail struct {
-	AlarmName     string           `json:"alarmName"`
-	PreviousState EventDetailState `json:"previousState"`
-	State         EventDetailState `json:"state"`
+// Event used to parse the CloudWatch Alarm event.
+type Event struct {
+	AlarmARN  string    `json:"alarmArn"`
+	AlarmData AlarmData `json:"alarmData"`
 }
 
-// EventDetailStateValue used to determine the CloudWatch Alarm state.
-type EventDetailStateValue string
+// AlarmData used to check the previous and current state of the CloudWatch Alarm.
+type AlarmData struct {
+	AlarmName     string                 `json:"alarmName"`
+	State         AlarmDataState         `json:"state"`
+	Configuration AlarmDataConfiguration `json:"configuration"`
+}
 
-const (
-	// EventDetailStateValueAlarm used to determine if the CloudWatch Alarm is currently triggered.
-	EventDetailStateValueAlarm EventDetailStateValue = "ALARM"
-)
+// AlarmDataState used to check the previous and current state of the CloudWatch Alarm.
+type AlarmDataState struct {
+	Reason string `json:"reason"`
+}
 
-// EventDetailState used to check the previous and current state of the CloudWatch Alarm.
-type EventDetailState struct {
-	Value  EventDetailStateValue `json:"value"`
-	Reason string                `json:"reason"`
+// AlarmDataConfiguration used to review the configuration of the CloudWatch Alarm.
+type AlarmDataConfiguration struct {
+	Description string `json:"description"`
 }
