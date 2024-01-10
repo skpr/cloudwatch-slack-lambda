@@ -11,9 +11,6 @@ import (
 
 // PostMessageParams are the parameters required to post a message to Slack.
 type PostMessageParams struct {
-	// Webhooks used to deliver the message.
-	Webhooks []string
-
 	// Metadata.
 	Cluster     string
 	Project     string
@@ -31,6 +28,7 @@ type PostMessageParams struct {
 	Image string
 }
 
+// Validate the parameters.
 func (p PostMessageParams) Validate() error {
 	var errs []error
 
@@ -62,7 +60,7 @@ func (p PostMessageParams) Validate() error {
 }
 
 // PostMessage to Slack channel.
-func PostMessage(params PostMessageParams) error {
+func (c *Client) PostMessage(params PostMessageParams) error {
 	if err := params.Validate(); err != nil {
 		return fmt.Errorf("invalid parameters: %w", err)
 	}
@@ -145,7 +143,7 @@ func PostMessage(params PostMessageParams) error {
 
 	fmt.Println(string(request))
 
-	for _, webhook := range params.Webhooks {
+	for _, webhook := range c.webhooks {
 		req, err := http.NewRequest(http.MethodPost, webhook, bytes.NewBuffer(request))
 		if err != nil {
 			return err

@@ -7,6 +7,9 @@ import (
 	"strings"
 
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	awscloudwatch "github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 
 	"github.com/skpr/cloudwatch-slack-lambda/internal/cloudwatch"
 	"github.com/skpr/cloudwatch-slack-lambda/internal/slack"
@@ -37,28 +40,54 @@ func HandleLambdaEvent(ctx context.Context, event *cloudwatch.Event) error {
 		return fmt.Errorf("configuration error: %s", strings.Join(errs, "\n"))
 	}
 
-	log.Println("Querying Alarm for Additional Context")
+	slackClient, err := slack.NewClient(config.SlackWebhookURL)
+	if err != nil {
+		return fmt.Errorf("failed to create Slack client: %w", err)
+	}
 
-	// @todo, Get Alarm details from CloudWatch API.
+	cfg, err := awsconfig.LoadDefaultConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("unable to load SDK config, %v", err)
+	}
 
-	log.Println("Sending Slack message")
+	cloudwatchClient := awscloudwatch.NewFromConfig(cfg)
 
-	err = slack.PostMessage(slack.PostMessageParams{
-		Webhooks:      config.SlackWebhookURL,
-		Cluster:       config.ClusterName,
-		Project:       "", // @todo
-		Environment:   "", // @todo
+	err = run(ctx, cloudwatchClient, slackClient, event)
+	if err != nil {
+		return err
+	}
+
+	log.Println("Function complete")
+
+	return nil
+}
+
+// Run will execute the core of the function.
+func run(ctx context.Context, cloudwatchClient cloudwatch.ClientInterface, slackClient slack.ClientInterface, event *cloudwatch.Event) error {
+	if event.AlarmARN == "" {
+		return fmt.Errorf("alarm ARN is required")
+	}
+
+	alarm, err := cloudwatchClient.ListTagsForResource(ctx, &awscloudwatch.ListTagsForResourceInput{
+		ResourceARN: aws.String(event.AlarmARN),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list tags for resource: %w", err)
+	}
+
+	err = slackClient.PostMessage(slack.PostMessageParams{
+		Cluster:       cloudwatch.GetValueFromTag(alarm.Tags, cloudwatch.TagKeyCluster),
+		Project:       cloudwatch.GetValueFromTag(alarm.Tags, cloudwatch.TagKeyProject),
+		Environment:   cloudwatch.GetValueFromTag(alarm.Tags, cloudwatch.TagKeyEnvironment),
 		Description:   event.AlarmData.Configuration.Description,
 		Reason:        event.AlarmData.State.Reason,
-		Dashboard:     "", // @todo
-		Documentation: "", // @todo
-		Image:         "", // @todo
+		Dashboard:     cloudwatch.GetValueFromTag(alarm.Tags, cloudwatch.TagKeyLinkDashboard),
+		Documentation: cloudwatch.GetValueFromTag(alarm.Tags, cloudwatch.TagKeyLinkDocumentation),
+		Image:         cloudwatch.GetValueFromTag(alarm.Tags, cloudwatch.TagKeyAssetIcon),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to post Slack message: %w", err)
 	}
-
-	log.Println("Function complete")
 
 	return nil
 }

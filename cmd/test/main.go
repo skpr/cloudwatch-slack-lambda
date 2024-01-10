@@ -5,10 +5,14 @@ import (
 )
 
 func main() {
-	err := slack.PostMessage(slack.PostMessageParams{
-		Webhooks: []string{
-			"https://hooks.slack.com/services/xxxxxx/yyyyyyyyy/zzzzzzzzz",
-		},
+	slackClient, err := slack.NewClient([]string{
+		"https://hooks.slack.com/services/xxxxxx/yyyyyyyyy/zzzzzzzzz",
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	err = slackClient.PostMessage(slack.PostMessageParams{
 		Cluster:       "skpr-local",
 		Project:       "test",
 		Environment:   "dev",

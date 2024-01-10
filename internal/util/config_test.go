@@ -9,7 +9,6 @@ import (
 func TestLoadConfig(t *testing.T) {
 	config, err := LoadConfig("testdata")
 	assert.NoError(t, err)
-	assert.Equal(t, "skpr-test", config.ClusterName)
 	assert.Equal(t, []string{"http://example.com/slack-hook1", "http://example.com/slack-hook2"}, config.SlackWebhookURL)
 }
 
@@ -20,16 +19,12 @@ func TestValidate(t *testing.T) {
 		fails  bool
 	}{
 		{
-			name: "Missing Config",
-			config: Config{
-				ClusterName: "skpr-test",
-			},
+			name:  "Missing Config",
 			fails: true,
 		},
 		{
 			name: "All the Config",
 			config: Config{
-				ClusterName:     "skpr-test",
 				SlackWebhookURL: []string{"http://example.com/slack-webhook"},
 			},
 			fails: false,
