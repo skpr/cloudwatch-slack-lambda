@@ -41,6 +41,10 @@ func TestRun(t *testing.T) {
 				Value: aws.String("dev"),
 			},
 			{
+				Key:   aws.String(cloudwatch.TagKeyInstance),
+				Value: aws.String("nonprod"),
+			},
+			{
 				Key:   aws.String(cloudwatch.TagKeyLinkDashboard),
 				Value: aws.String("https://www.skpr.io"),
 			},
@@ -64,6 +68,7 @@ func TestRun(t *testing.T) {
 		Cluster:       "skpr-test",
 		Project:       "test",
 		Environment:   "dev",
+		Instance:      "nonprod",
 		Description:   "This is a test description",
 		Reason:        "This is a test reason",
 		Dashboard:     "https://www.skpr.io",

@@ -11,6 +11,8 @@ const (
 	TagKeyProject = "skpr.io/project"
 	// TagKeyEnvironment is a key to identify the environment which an alarm relates to.
 	TagKeyEnvironment = "skpr.io/environment"
+	// TagKeyInstance is a key to identify the instance which an alarm relates to.
+	TagKeyInstance = "skpr.io/instance"
 	// TagKeyLinkDashboard is a key to get the dashboard related to an alarm.
 	TagKeyLinkDashboard = "skpr.io/link/dashboard"
 	// TagKeyLinkDocumentation is a key to get the documentation related to an alarm.

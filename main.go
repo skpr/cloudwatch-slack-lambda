@@ -79,6 +79,7 @@ func run(ctx context.Context, cloudwatchClient cloudwatch.ClientInterface, slack
 		Cluster:       cloudwatch.GetValueFromTag(alarm.Tags, cloudwatch.TagKeyCluster),
 		Project:       cloudwatch.GetValueFromTag(alarm.Tags, cloudwatch.TagKeyProject),
 		Environment:   cloudwatch.GetValueFromTag(alarm.Tags, cloudwatch.TagKeyEnvironment),
+		Instance:      cloudwatch.GetValueFromTag(alarm.Tags, cloudwatch.TagKeyInstance),
 		Description:   event.AlarmData.Configuration.Description,
 		Reason:        event.AlarmData.State.Reason,
 		Dashboard:     cloudwatch.GetValueFromTag(alarm.Tags, cloudwatch.TagKeyLinkDashboard),

@@ -11,10 +11,14 @@ import (
 
 // PostMessageParams are the parameters required to post a message to Slack.
 type PostMessageParams struct {
-	// Metadata.
-	Cluster     string
-	Project     string
+	// Cluster this alarm is related to.
+	Cluster string
+	// Project this alarm is related to.
+	Project string
+	// Environment this alarm is related to.
 	Environment string
+	// Fallback for when Project and Environment do not fit.
+	Instance string
 
 	// Details.
 	Description string
@@ -34,14 +38,6 @@ func (p PostMessageParams) Validate() error {
 
 	if p.Cluster == "" {
 		errs = append(errs, fmt.Errorf("cluster is required"))
-	}
-
-	if p.Project == "" {
-		errs = append(errs, fmt.Errorf("project is required"))
-	}
-
-	if p.Environment == "" {
-		errs = append(errs, fmt.Errorf("environment is required"))
 	}
 
 	if p.Description == "" {
@@ -73,23 +69,39 @@ func (c *Client) PostMessage(params PostMessageParams) error {
 	//   * Is it production?
 	//   * Which project?
 	//   * Which cluster?
-	message.Blocks = append(message.Blocks, BlockContext{
+	context := BlockContext{
 		Type: BlockTypeContext,
-		Elements: []BlockContextElement{
-			{
-				Type: BlockElementTypeMarkdown,
-				Text: fmt.Sprintf("*Environment* = %s", params.Environment),
-			},
-			{
-				Type: BlockElementTypeMarkdown,
-				Text: fmt.Sprintf("*Project* = %s", params.Project),
-			},
-			{
-				Type: BlockElementTypeMarkdown,
-				Text: fmt.Sprintf("*Cluster* = %s", params.Cluster),
-			},
-		},
-	})
+	}
+
+	if params.Instance != "" {
+		context.Elements = append(context.Elements, BlockContextElement{
+			Type: BlockElementTypeMarkdown,
+			Text: fmt.Sprintf("*Instance* = %s", params.Instance),
+		})
+	}
+
+	if params.Environment != "" {
+		context.Elements = append(context.Elements, BlockContextElement{
+			Type: BlockElementTypeMarkdown,
+			Text: fmt.Sprintf("*Environment* = %s", params.Environment),
+		})
+	}
+
+	if params.Project != "" {
+		context.Elements = append(context.Elements, BlockContextElement{
+			Type: BlockElementTypeMarkdown,
+			Text: fmt.Sprintf("*Project* = %s", params.Project),
+		})
+	}
+
+	if params.Cluster != "" {
+		context.Elements = append(context.Elements, BlockContextElement{
+			Type: BlockElementTypeMarkdown,
+			Text: fmt.Sprintf("*Cluster* = %s", params.Cluster),
+		})
+	}
+
+	message.Blocks = append(message.Blocks, context)
 
 	// Separate the context from the content.
 	message.Blocks = append(message.Blocks, BlockDivider{
