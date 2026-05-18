@@ -1,9 +1,10 @@
 module github.com/skpr/cloudwatch-slack-lambda
 
-go 1.19
+go 1.26
 
 require (
 	github.com/aws/aws-lambda-go v1.44.0
+	github.com/aws/aws-sdk-go-v2 v1.24.1
 	github.com/aws/aws-sdk-go-v2/config v1.18.8
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.32.2
 	github.com/spf13/viper v1.15.0
@@ -11,7 +12,6 @@ require (
 )
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.24.1 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.8 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.12.21 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.2.10 // indirect
