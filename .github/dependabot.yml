@@ -6,7 +6,7 @@ updates:
     schedule:
       interval: "weekly"
     cooldown:
-      dependency-age: 1
+      default-days: 1
     groups:
       go-dependencies:
         patterns:
