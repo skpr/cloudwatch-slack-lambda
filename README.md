@@ -24,3 +24,21 @@ The following tags are used to configure the Slack message.
 | skpr.io/link/dashboard     | A link to a dashboard which can provide context to the CloudWatch Alarm    |
 | skpr.io/link/documentation | A link to documentation which can provide context to the CloudWatch Alarm  |
 | skpr.io/asset/icon         | A link to an icon which can provide context to the Slack message           |
+
+## Testing Lambda
+
+An example of the json payload sent to the Lambda function for testing is below:
+
+```json
+{
+  "alarmArn": "arn:aws:cloudwatch:ap-southeast-2:[account]:alarm:[name]",
+  "alarmData": {
+    "state": {
+      "reason": "My test reason"
+    },
+    "configuration": {
+      "description": "A test description"
+    }
+  }
+}
+```
