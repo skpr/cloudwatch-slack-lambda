@@ -5,28 +5,31 @@ package cloudwatch
 import (
 	"context"
 	"fmt"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// List the specified metrics. You can use the returned metrics with GetMetricData (https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_GetMetricData.html)
-// or GetMetricStatistics (https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_GetMetricStatistics.html)
-// to get statistical data. Up to 500 results are returned for any one call. To
-// retrieve additional results, use the returned token with subsequent calls. After
-// you create a metric, allow up to 15 minutes for the metric to appear. To see
-// metric statistics sooner, use GetMetricData (https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_GetMetricData.html)
-// or GetMetricStatistics (https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_GetMetricStatistics.html)
-// . If you are using CloudWatch cross-account observability, you can use this
+// List the specified metrics. You can use the returned metrics with [GetMetricData] or [GetMetricStatistics] to get
+// statistical data.
+//
+// Up to 500 results are returned for any one call. To retrieve additional
+// results, use the returned token with subsequent calls.
+//
+// After you create a metric, allow up to 15 minutes for the metric to appear. To
+// see metric statistics sooner, use [GetMetricData]or [GetMetricStatistics].
+//
+// If you are using CloudWatch cross-account observability, you can use this
 // operation in a monitoring account and view metrics from the linked source
-// accounts. For more information, see CloudWatch cross-account observability (https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Unified-Cross-Account.html)
-// . ListMetrics doesn't return information about metrics if those metrics haven't
-// reported data in the past two weeks. To retrieve those metrics, use
-// GetMetricData (https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_GetMetricData.html)
-// or GetMetricStatistics (https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_GetMetricStatistics.html)
-// .
+// accounts. For more information, see [CloudWatch cross-account observability].
+//
+// ListMetrics doesn't return information about metrics if those metrics haven't
+// reported data in the past two weeks. To retrieve those metrics, use [GetMetricData]or [GetMetricStatistics].
+//
+// [GetMetricData]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_GetMetricData.html
+// [GetMetricStatistics]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_GetMetricStatistics.html
+// [CloudWatch cross-account observability]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Unified-Cross-Account.html
 func (c *Client) ListMetrics(ctx context.Context, params *ListMetricsInput, optFns ...func(*Options)) (*ListMetricsOutput, error) {
 	if params == nil {
 		params = &ListMetricsInput{}
@@ -44,12 +47,15 @@ func (c *Client) ListMetrics(ctx context.Context, params *ListMetricsInput, optF
 
 type ListMetricsInput struct {
 
-	// The dimensions to filter against. Only the dimensions that match exactly will
-	// be returned.
+	// The dimensions to filter against. Only the dimension with names that match
+	// exactly will be returned. If you specify one dimension name and a metric has
+	// that dimension and also other dimensions, it will be returned.
 	Dimensions []types.DimensionFilter
 
 	// If you are using this operation in a monitoring account, specify true to
-	// include metrics from source accounts in the returned data. The default is false .
+	// include metrics from source accounts in the returned data.
+	//
+	// The default is false .
 	IncludeLinkedAccounts *bool
 
 	// The name of the metric to filter against. Only the metrics with names that
@@ -71,13 +77,42 @@ type ListMetricsInput struct {
 
 	// To filter the results to show only metrics that have had data points published
 	// in the past three hours, specify this parameter with a value of PT3H . This is
-	// the only valid value for this parameter. The results that are returned are an
-	// approximation of the value you specify. There is a low probability that the
-	// returned results include metrics with last published data as much as 40 minutes
-	// more than the specified time interval.
+	// the only valid value for this parameter.
+	//
+	// The results that are returned are an approximation of the value you specify.
+	// There is a low probability that the returned results include metrics with last
+	// published data as much as 50 minutes more than the specified time interval.
 	RecentlyActive types.RecentlyActive
 
 	noSmithyDocumentSerde
+}
+
+func (v *ListMetricsInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListMetricsInput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListMetricsInput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeDimensionFilters(s, schemas.ListMetricsInput_Dimensions, v.Dimensions)
+	if v.IncludeLinkedAccounts != nil {
+		s.WriteBool(schemas.ListMetricsInput_IncludeLinkedAccounts, *v.IncludeLinkedAccounts)
+	}
+	if v.MetricName != nil {
+		s.WriteString(schemas.ListMetricsInput_MetricName, *v.MetricName)
+	}
+	if v.Namespace != nil {
+		s.WriteString(schemas.ListMetricsInput_Namespace, *v.Namespace)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.ListMetricsInput_NextToken, *v.NextToken)
+	}
+	if v.OwningAccount != nil {
+		s.WriteString(schemas.ListMetricsInput_OwningAccount, *v.OwningAccount)
+	}
+	if v.RecentlyActive != "" {
+		s.WriteString(schemas.ListMetricsInput_RecentlyActive, string(v.RecentlyActive))
+	}
 }
 
 type ListMetricsOutput struct {
@@ -90,8 +125,10 @@ type ListMetricsOutput struct {
 
 	// If you are using this operation in a monitoring account, this array contains
 	// the account IDs of the source accounts where the metrics in the returned data
-	// are from. This field is a 1:1 mapping between each metric that is returned and
-	// the ID of the owning account.
+	// are from.
+	//
+	// This field is a 1:1 mapping between each metric that is returned and the ID of
+	// the owning account.
 	OwningAccounts []string
 
 	// Metadata pertaining to the operation's result.
@@ -100,68 +137,57 @@ type ListMetricsOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *ListMetricsOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListMetricsOutput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListMetricsOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeMetrics(s, schemas.ListMetricsOutput_Metrics, v.Metrics)
+	if v.NextToken != nil {
+		s.WriteString(schemas.ListMetricsOutput_NextToken, *v.NextToken)
+	}
+	serializeOwningAccounts(s, schemas.ListMetricsOutput_OwningAccounts, v.OwningAccounts)
+}
+func (v *ListMetricsOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ListMetricsOutput, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ListMetricsOutput_Metrics:
+			return deserializeMetrics(d, schemas.ListMetricsOutput_Metrics, &v.Metrics)
+		case schemas.ListMetricsOutput_NextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.ListMetricsOutput_NextToken, v.NextToken)
+		case schemas.ListMetricsOutput_OwningAccounts:
+			return deserializeOwningAccounts(d, schemas.ListMetricsOutput_OwningAccounts, &v.OwningAccounts)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationListMetricsMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListMetrics, schemas.ListMetricsInput, schemas.ListMetricsOutput)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpListMetrics{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListMetrics, schemas.ListMetricsInput, schemas.ListMetricsOutput), output: &ListMetricsOutput{}}, middleware.After); err != nil {
 		return err
-	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpListMetrics{}, middleware.After)
-	if err != nil {
-		return err
-	}
-	if err := addProtocolFinalizerMiddlewares(stack, options, "ListMetrics"); err != nil {
-		return fmt.Errorf("add protocol finalizers: %v", err)
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
-	if err = addSetLoggerMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack, options); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpListMetricsValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListMetrics(options.Region), middleware.Before); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -176,15 +202,11 @@ func (c *Client) addOperationListMetricsMiddlewares(stack *middleware.Stack, opt
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// ListMetricsAPIClient is a client that implements the ListMetrics operation.
-type ListMetricsAPIClient interface {
-	ListMetrics(context.Context, *ListMetricsInput, ...func(*Options)) (*ListMetricsOutput, error)
-}
-
-var _ ListMetricsAPIClient = (*Client)(nil)
 
 // ListMetricsPaginatorOptions is the paginator options for ListMetrics
 type ListMetricsPaginatorOptions struct {
@@ -237,6 +259,9 @@ func (p *ListMetricsPaginator) NextPage(ctx context.Context, optFns ...func(*Opt
 	params := *p.params
 	params.NextToken = p.nextToken
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.ListMetrics(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -256,10 +281,9 @@ func (p *ListMetricsPaginator) NextPage(ctx context.Context, optFns ...func(*Opt
 	return result, nil
 }
 
-func newServiceMetadataMiddleware_opListMetrics(region string) *awsmiddleware.RegisterServiceMetadata {
-	return &awsmiddleware.RegisterServiceMetadata{
-		Region:        region,
-		ServiceID:     ServiceID,
-		OperationName: "ListMetrics",
-	}
+// ListMetricsAPIClient is a client that implements the ListMetrics operation.
+type ListMetricsAPIClient interface {
+	ListMetrics(context.Context, *ListMetricsInput, ...func(*Options)) (*ListMetricsOutput, error)
 }
+
+var _ ListMetricsAPIClient = (*Client)(nil)

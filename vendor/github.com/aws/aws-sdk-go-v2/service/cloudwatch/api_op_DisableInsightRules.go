@@ -4,12 +4,10 @@ package cloudwatch
 
 import (
 	"context"
-	"fmt"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Disables the specified Contributor Insights rules. When rules are disabled,
@@ -32,13 +30,24 @@ func (c *Client) DisableInsightRules(ctx context.Context, params *DisableInsight
 type DisableInsightRulesInput struct {
 
 	// An array of the rule names to disable. If you need to find out the names of
-	// your rules, use DescribeInsightRules (https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_DescribeInsightRules.html)
-	// .
+	// your rules, use [DescribeInsightRules].
+	//
+	// [DescribeInsightRules]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_DescribeInsightRules.html
 	//
 	// This member is required.
 	RuleNames []string
 
 	noSmithyDocumentSerde
+}
+
+func (v *DisableInsightRulesInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DisableInsightRulesInput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DisableInsightRulesInput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeInsightRuleNames(s, schemas.DisableInsightRulesInput_RuleNames, v.RuleNames)
 }
 
 type DisableInsightRulesOutput struct {
@@ -53,68 +62,48 @@ type DisableInsightRulesOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DisableInsightRulesOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DisableInsightRulesOutput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DisableInsightRulesOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeBatchFailures(s, schemas.DisableInsightRulesOutput_Failures, v.Failures)
+}
+func (v *DisableInsightRulesOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.DisableInsightRulesOutput, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.DisableInsightRulesOutput_Failures:
+			return deserializeBatchFailures(d, schemas.DisableInsightRulesOutput_Failures, &v.Failures)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDisableInsightRulesMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DisableInsightRules, schemas.DisableInsightRulesInput, schemas.DisableInsightRulesOutput)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpDisableInsightRules{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DisableInsightRules, schemas.DisableInsightRulesInput, schemas.DisableInsightRulesOutput), output: &DisableInsightRulesOutput{}}, middleware.After); err != nil {
 		return err
-	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpDisableInsightRules{}, middleware.After)
-	if err != nil {
-		return err
-	}
-	if err := addProtocolFinalizerMiddlewares(stack, options, "DisableInsightRules"); err != nil {
-		return fmt.Errorf("add protocol finalizers: %v", err)
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
-	if err = addSetLoggerMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack, options); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpDisableInsightRulesValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDisableInsightRules(options.Region), middleware.Before); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -129,13 +118,8 @@ func (c *Client) addOperationDisableInsightRulesMiddlewares(stack *middleware.St
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	return nil
-}
-
-func newServiceMetadataMiddleware_opDisableInsightRules(region string) *awsmiddleware.RegisterServiceMetadata {
-	return &awsmiddleware.RegisterServiceMetadata{
-		Region:        region,
-		ServiceID:     ServiceID,
-		OperationName: "DisableInsightRules",
+	if err = addInterceptors(stack, options); err != nil {
+		return err
 	}
+	return nil
 }

@@ -4,26 +4,30 @@ package cloudwatch
 
 import (
 	"context"
-	"fmt"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Assigns one or more tags (key-value pairs) to the specified CloudWatch
-// resource. Currently, the only CloudWatch resources that can be tagged are alarms
-// and Contributor Insights rules. Tags can help you organize and categorize your
-// resources. You can also use them to scope user permissions by granting a user
-// permission to access or change only resources with certain tag values. Tags
-// don't have any semantic meaning to Amazon Web Services and are interpreted
-// strictly as strings of characters. You can use the TagResource action with an
-// alarm that already has tags. If you specify a new tag key for the alarm, this
-// tag is appended to the list of tags associated with the alarm. If you specify a
-// tag key that is already associated with the alarm, the new tag value that you
-// specify replaces the previous value for that tag. You can associate as many as
-// 50 tags with a CloudWatch resource.
+// resource. Currently, the only CloudWatch resources that can be tagged are
+// alarms, dashboards, metric streams and Contributor Insights rules.
+//
+// Tags can help you organize and categorize your resources. You can also use them
+// to scope user permissions by granting a user permission to access or change only
+// resources with certain tag values.
+//
+// Tags don't have any semantic meaning to Amazon Web Services and are interpreted
+// strictly as strings of characters.
+//
+// You can use the TagResource action with an alarm that already has tags. If you
+// specify a new tag key for the alarm, this tag is appended to the list of tags
+// associated with the alarm. If you specify a tag key that is already associated
+// with the alarm, the new tag value that you specify replaces the previous value
+// for that tag.
+//
+// You can associate as many as 50 tags with a CloudWatch resource.
 func (c *Client) TagResource(ctx context.Context, params *TagResourceInput, optFns ...func(*Options)) (*TagResourceOutput, error) {
 	if params == nil {
 		params = &TagResourceInput{}
@@ -41,12 +45,24 @@ func (c *Client) TagResource(ctx context.Context, params *TagResourceInput, optF
 
 type TagResourceInput struct {
 
-	// The ARN of the CloudWatch resource that you're adding tags to. The ARN format
-	// of an alarm is arn:aws:cloudwatch:Region:account-id:alarm:alarm-name  The ARN
-	// format of a Contributor Insights rule is
-	// arn:aws:cloudwatch:Region:account-id:insight-rule/insight-rule-name For more
-	// information about ARN format, see Resource Types Defined by Amazon CloudWatch (https://docs.aws.amazon.com/IAM/latest/UserGuide/list_amazoncloudwatch.html#amazoncloudwatch-resources-for-iam-policies)
-	// in the Amazon Web Services General Reference.
+	// The ARN of the CloudWatch resource that you're adding tags to.
+	//
+	// The ARN format of an alarm is
+	// arn:aws:cloudwatch:Region:account-id:alarm:alarm-name
+	//
+	// The ARN format of a Contributor Insights rule is
+	// arn:aws:cloudwatch:Region:account-id:insight-rule/insight-rule-name
+	//
+	// The ARN format of a dashboard is
+	// arn:aws:cloudwatch::account-id:dashboard/dashboard-name
+	//
+	// The ARN format of a metric stream is
+	// arn:aws:cloudwatch:Region:account-id:metric-stream/metric-stream-name
+	//
+	// For more information about ARN format, see [Resource Types Defined by Amazon CloudWatch] in the Amazon Web Services General
+	// Reference.
+	//
+	// [Resource Types Defined by Amazon CloudWatch]: https://docs.aws.amazon.com/IAM/latest/UserGuide/list_amazoncloudwatch.html#amazoncloudwatch-resources-for-iam-policies
 	//
 	// This member is required.
 	ResourceARN *string
@@ -59,6 +75,19 @@ type TagResourceInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *TagResourceInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.TagResourceInput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *TagResourceInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.ResourceARN != nil {
+		s.WriteString(schemas.TagResourceInput_ResourceARN, *v.ResourceARN)
+	}
+	serializeTagList(s, schemas.TagResourceInput_Tags, v.Tags)
+}
+
 type TagResourceOutput struct {
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -66,68 +95,45 @@ type TagResourceOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *TagResourceOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.TagResourceOutput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *TagResourceOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *TagResourceOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.TagResourceOutput, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationTagResourceMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.TagResource, schemas.TagResourceInput, schemas.TagResourceOutput)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpTagResource{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.TagResource, schemas.TagResourceInput, schemas.TagResourceOutput), output: &TagResourceOutput{}}, middleware.After); err != nil {
 		return err
-	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpTagResource{}, middleware.After)
-	if err != nil {
-		return err
-	}
-	if err := addProtocolFinalizerMiddlewares(stack, options, "TagResource"); err != nil {
-		return fmt.Errorf("add protocol finalizers: %v", err)
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
-	if err = addSetLoggerMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack, options); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpTagResourceValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opTagResource(options.Region), middleware.Before); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -142,13 +148,8 @@ func (c *Client) addOperationTagResourceMiddlewares(stack *middleware.Stack, opt
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	return nil
-}
-
-func newServiceMetadataMiddleware_opTagResource(region string) *awsmiddleware.RegisterServiceMetadata {
-	return &awsmiddleware.RegisterServiceMetadata{
-		Region:        region,
-		ServiceID:     ServiceID,
-		OperationName: "TagResource",
+	if err = addInterceptors(stack, options); err != nil {
+		return err
 	}
+	return nil
 }

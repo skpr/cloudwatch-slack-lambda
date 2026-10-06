@@ -4,24 +4,29 @@ package cloudwatch
 
 import (
 	"context"
-	"fmt"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Creates or updates a metric stream. Metric streams can automatically stream
 // CloudWatch metrics to Amazon Web Services destinations, including Amazon S3, and
-// to many third-party solutions. For more information, see Using Metric Streams (https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Metric-Streams.html)
-// . To create a metric stream, you must be signed in to an account that has the
+// to many third-party solutions.
+//
+// For more information, see [Using Metric Streams].
+//
+// To create a metric stream, you must be signed in to an account that has the
 // iam:PassRole permission and either the CloudWatchFullAccess policy or the
-// cloudwatch:PutMetricStream permission. When you create or update a metric
-// stream, you choose one of the following:
+// cloudwatch:PutMetricStream permission.
+//
+// When you create or update a metric stream, you choose one of the following:
+//
 //   - Stream metrics from all metric namespaces in the account.
+//
 //   - Stream metrics from all metric namespaces in the account, except for the
 //     namespaces that you list in ExcludeFilters .
+//
 //   - Stream metrics from only the metric namespaces that you list in
 //     IncludeFilters .
 //
@@ -29,14 +34,19 @@ import (
 // statistics for each metric that is streamed. You can use the
 // StatisticsConfigurations parameter to have the metric stream send additional
 // statistics in the stream. Streaming additional statistics incurs additional
-// costs. For more information, see Amazon CloudWatch Pricing (https://aws.amazon.com/cloudwatch/pricing/)
-// . When you use PutMetricStream to create a new metric stream, the stream is
+// costs. For more information, see [Amazon CloudWatch Pricing].
+//
+// When you use PutMetricStream to create a new metric stream, the stream is
 // created in the running state. If you use it to update an existing stream, the
-// state of the stream is not changed. If you are using CloudWatch cross-account
-// observability and you create a metric stream in a monitoring account, you can
-// choose whether to include metrics from source accounts in the stream. For more
-// information, see CloudWatch cross-account observability (https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Unified-Cross-Account.html)
-// .
+// state of the stream is not changed.
+//
+// If you are using CloudWatch cross-account observability and you create a metric
+// stream in a monitoring account, you can choose whether to include metrics from
+// source accounts in the stream. For more information, see [CloudWatch cross-account observability].
+//
+// [Using Metric Streams]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Metric-Streams.html
+// [CloudWatch cross-account observability]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Unified-Cross-Account.html
+// [Amazon CloudWatch Pricing]: https://aws.amazon.com/cloudwatch/pricing/
 func (c *Client) PutMetricStream(ctx context.Context, params *PutMetricStreamInput, optFns ...func(*Options)) (*PutMetricStreamOutput, error) {
 	if params == nil {
 		params = &PutMetricStreamInput{}
@@ -63,16 +73,20 @@ type PutMetricStreamInput struct {
 
 	// If you are creating a new metric stream, this is the name for the new stream.
 	// The name must be different than the names of other metric streams in this
-	// account and Region. If you are updating a metric stream, specify the name of
-	// that stream here. Valid characters are A-Z, a-z, 0-9, "-" and "_".
+	// account and Region.
+	//
+	// If you are updating a metric stream, specify the name of that stream here.
+	//
+	// Valid characters are A-Z, a-z, 0-9, "-" and "_".
 	//
 	// This member is required.
 	Name *string
 
 	// The output format for the stream. Valid values are json , opentelemetry1.0 , and
-	// opentelemetry0.7 . For more information about metric stream output formats, see
-	// Metric streams output formats (https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-metric-streams-formats.html)
+	// opentelemetry0.7 . For more information about metric stream output formats, see [Metric streams output formats]
 	// .
+	//
+	// [Metric streams output formats]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-metric-streams-formats.html
 	//
 	// This member is required.
 	OutputFormat types.MetricStreamOutputFormat
@@ -81,20 +95,24 @@ type PutMetricStreamInput struct {
 	// Kinesis Data Firehose resources. This IAM role must already exist and must be in
 	// the same account as the metric stream. This IAM role must include the following
 	// permissions:
+	//
 	//   - firehose:PutRecord
+	//
 	//   - firehose:PutRecordBatch
 	//
 	// This member is required.
 	RoleArn *string
 
 	// If you specify this parameter, the stream sends metrics from all metric
-	// namespaces except for the namespaces that you specify here. You cannot include
-	// ExcludeFilters and IncludeFilters in the same operation.
+	// namespaces except for the namespaces that you specify here.
+	//
+	// You cannot include ExcludeFilters and IncludeFilters in the same operation.
 	ExcludeFilters []types.MetricStreamFilter
 
 	// If you specify this parameter, the stream sends only the metrics from the
-	// metric namespaces that you specify here. You cannot include IncludeFilters and
-	// ExcludeFilters in the same operation.
+	// metric namespaces that you specify here.
+	//
+	// You cannot include IncludeFilters and ExcludeFilters in the same operation.
 	IncludeFilters []types.MetricStreamFilter
 
 	// If you are creating a metric stream in a monitoring account, specify true to
@@ -104,28 +122,64 @@ type PutMetricStreamInput struct {
 	// By default, a metric stream always sends the MAX , MIN , SUM , and SAMPLECOUNT
 	// statistics for each metric that is streamed. You can use this parameter to have
 	// the metric stream also send additional statistics in the stream. This array can
-	// have up to 100 members. For each entry in this array, you specify one or more
-	// metrics and the list of additional statistics to stream for those metrics. The
-	// additional statistics that you can stream depend on the stream's OutputFormat .
-	// If the OutputFormat is json , you can stream any additional statistic that is
-	// supported by CloudWatch, listed in CloudWatch statistics definitions (https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Statistics-definitions.html.html)
-	// . If the OutputFormat is opentelemetry1.0 or opentelemetry0.7 , you can stream
-	// percentile statistics such as p95, p99.9, and so on.
+	// have up to 100 members.
+	//
+	// For each entry in this array, you specify one or more metrics and the list of
+	// additional statistics to stream for those metrics. The additional statistics
+	// that you can stream depend on the stream's OutputFormat . If the OutputFormat
+	// is json , you can stream any additional statistic that is supported by
+	// CloudWatch, listed in [CloudWatch statistics definitions]. If the OutputFormat is opentelemetry1.0 or
+	// opentelemetry0.7 , you can stream percentile statistics such as p95, p99.9, and
+	// so on.
+	//
+	// [CloudWatch statistics definitions]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Statistics-definitions.html
 	StatisticsConfigurations []types.MetricStreamStatisticsConfiguration
 
 	// A list of key-value pairs to associate with the metric stream. You can
-	// associate as many as 50 tags with a metric stream. Tags can help you organize
-	// and categorize your resources. You can also use them to scope user permissions
-	// by granting a user permission to access or change only resources with certain
-	// tag values. You can use this parameter only when you are creating a new metric
-	// stream. If you are using this operation to update an existing metric stream, any
-	// tags you specify in this parameter are ignored. To change the tags of an
-	// existing metric stream, use TagResource (https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_TagResource.html)
-	// or UntagResource (https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_UntagResource.html)
-	// .
+	// associate as many as 50 tags with a metric stream.
+	//
+	// Tags can help you organize and categorize your resources. You can also use them
+	// to scope user permissions by granting a user permission to access or change only
+	// resources with certain tag values.
+	//
+	// You can use this parameter only when you are creating a new metric stream. If
+	// you are using this operation to update an existing metric stream, any tags you
+	// specify in this parameter are ignored. To change the tags of an existing metric
+	// stream, use [TagResource]or [UntagResource].
+	//
+	// [TagResource]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_TagResource.html
+	// [UntagResource]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_UntagResource.html
 	Tags []types.Tag
 
 	noSmithyDocumentSerde
+}
+
+func (v *PutMetricStreamInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutMetricStreamInput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutMetricStreamInput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeMetricStreamFilters(s, schemas.PutMetricStreamInput_ExcludeFilters, v.ExcludeFilters)
+	if v.FirehoseArn != nil {
+		s.WriteString(schemas.PutMetricStreamInput_FirehoseArn, *v.FirehoseArn)
+	}
+	serializeMetricStreamFilters(s, schemas.PutMetricStreamInput_IncludeFilters, v.IncludeFilters)
+	if v.IncludeLinkedAccountsMetrics != nil {
+		s.WriteBool(schemas.PutMetricStreamInput_IncludeLinkedAccountsMetrics, *v.IncludeLinkedAccountsMetrics)
+	}
+	if v.Name != nil {
+		s.WriteString(schemas.PutMetricStreamInput_Name, *v.Name)
+	}
+	if v.OutputFormat != "" {
+		s.WriteString(schemas.PutMetricStreamInput_OutputFormat, string(v.OutputFormat))
+	}
+	if v.RoleArn != nil {
+		s.WriteString(schemas.PutMetricStreamInput_RoleArn, *v.RoleArn)
+	}
+	serializeMetricStreamStatisticsConfigurations(s, schemas.PutMetricStreamInput_StatisticsConfigurations, v.StatisticsConfigurations)
+	serializeTagList(s, schemas.PutMetricStreamInput_Tags, v.Tags)
 }
 
 type PutMetricStreamOutput struct {
@@ -139,68 +193,51 @@ type PutMetricStreamOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutMetricStreamOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutMetricStreamOutput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutMetricStreamOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Arn != nil {
+		s.WriteString(schemas.PutMetricStreamOutput_Arn, *v.Arn)
+	}
+}
+func (v *PutMetricStreamOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.PutMetricStreamOutput, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.PutMetricStreamOutput_Arn:
+			v.Arn = new(string)
+			return d.ReadString(schemas.PutMetricStreamOutput_Arn, v.Arn)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationPutMetricStreamMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutMetricStream, schemas.PutMetricStreamInput, schemas.PutMetricStreamOutput)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpPutMetricStream{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutMetricStream, schemas.PutMetricStreamInput, schemas.PutMetricStreamOutput), output: &PutMetricStreamOutput{}}, middleware.After); err != nil {
 		return err
-	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpPutMetricStream{}, middleware.After)
-	if err != nil {
-		return err
-	}
-	if err := addProtocolFinalizerMiddlewares(stack, options, "PutMetricStream"); err != nil {
-		return fmt.Errorf("add protocol finalizers: %v", err)
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
-	if err = addSetLoggerMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack, options); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpPutMetricStreamValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opPutMetricStream(options.Region), middleware.Before); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -215,13 +252,8 @@ func (c *Client) addOperationPutMetricStreamMiddlewares(stack *middleware.Stack,
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	return nil
-}
-
-func newServiceMetadataMiddleware_opPutMetricStream(region string) *awsmiddleware.RegisterServiceMetadata {
-	return &awsmiddleware.RegisterServiceMetadata{
-		Region:        region,
-		ServiceID:     ServiceID,
-		OperationName: "PutMetricStream",
+	if err = addInterceptors(stack, options); err != nil {
+		return err
 	}
+	return nil
 }

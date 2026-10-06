@@ -5,11 +5,10 @@ package cloudwatch
 import (
 	"context"
 	"fmt"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Returns a list of metric streams in this account.
@@ -40,6 +39,21 @@ type ListMetricStreamsInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *ListMetricStreamsInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListMetricStreamsInput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListMetricStreamsInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.MaxResults != nil {
+		s.WriteInt32(schemas.ListMetricStreamsInput_MaxResults, *v.MaxResults)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.ListMetricStreamsInput_NextToken, *v.NextToken)
+	}
+}
+
 type ListMetricStreamsOutput struct {
 
 	// The array of metric stream information.
@@ -55,65 +69,51 @@ type ListMetricStreamsOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *ListMetricStreamsOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListMetricStreamsOutput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListMetricStreamsOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeMetricStreamEntries(s, schemas.ListMetricStreamsOutput_Entries, v.Entries)
+	if v.NextToken != nil {
+		s.WriteString(schemas.ListMetricStreamsOutput_NextToken, *v.NextToken)
+	}
+}
+func (v *ListMetricStreamsOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ListMetricStreamsOutput, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ListMetricStreamsOutput_Entries:
+			return deserializeMetricStreamEntries(d, schemas.ListMetricStreamsOutput_Entries, &v.Entries)
+		case schemas.ListMetricStreamsOutput_NextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.ListMetricStreamsOutput_NextToken, v.NextToken)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationListMetricStreamsMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListMetricStreams, schemas.ListMetricStreamsInput, schemas.ListMetricStreamsOutput)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpListMetricStreams{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListMetricStreams, schemas.ListMetricStreamsInput, schemas.ListMetricStreamsOutput), output: &ListMetricStreamsOutput{}}, middleware.After); err != nil {
 		return err
-	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpListMetricStreams{}, middleware.After)
-	if err != nil {
-		return err
-	}
-	if err := addProtocolFinalizerMiddlewares(stack, options, "ListMetricStreams"); err != nil {
-		return fmt.Errorf("add protocol finalizers: %v", err)
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
-	if err = addSetLoggerMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack, options); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListMetricStreams(options.Region), middleware.Before); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -128,16 +128,11 @@ func (c *Client) addOperationListMetricStreamsMiddlewares(stack *middleware.Stac
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// ListMetricStreamsAPIClient is a client that implements the ListMetricStreams
-// operation.
-type ListMetricStreamsAPIClient interface {
-	ListMetricStreams(context.Context, *ListMetricStreamsInput, ...func(*Options)) (*ListMetricStreamsOutput, error)
-}
-
-var _ ListMetricStreamsAPIClient = (*Client)(nil)
 
 // ListMetricStreamsPaginatorOptions is the paginator options for ListMetricStreams
 type ListMetricStreamsPaginatorOptions struct {
@@ -202,6 +197,9 @@ func (p *ListMetricStreamsPaginator) NextPage(ctx context.Context, optFns ...fun
 	}
 	params.MaxResults = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.ListMetricStreams(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -221,10 +219,10 @@ func (p *ListMetricStreamsPaginator) NextPage(ctx context.Context, optFns ...fun
 	return result, nil
 }
 
-func newServiceMetadataMiddleware_opListMetricStreams(region string) *awsmiddleware.RegisterServiceMetadata {
-	return &awsmiddleware.RegisterServiceMetadata{
-		Region:        region,
-		ServiceID:     ServiceID,
-		OperationName: "ListMetricStreams",
-	}
+// ListMetricStreamsAPIClient is a client that implements the ListMetricStreams
+// operation.
+type ListMetricStreamsAPIClient interface {
+	ListMetricStreams(context.Context, *ListMetricStreamsInput, ...func(*Options)) (*ListMetricStreamsOutput, error)
 }
+
+var _ ListMetricStreamsAPIClient = (*Client)(nil)
