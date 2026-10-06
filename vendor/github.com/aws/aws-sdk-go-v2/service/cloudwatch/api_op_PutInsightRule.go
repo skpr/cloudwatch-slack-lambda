@@ -4,20 +4,20 @@ package cloudwatch
 
 import (
 	"context"
-	"fmt"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Creates a Contributor Insights rule. Rules evaluate log events in a CloudWatch
 // Logs log group, enabling you to find contributor data for the log events in that
-// log group. For more information, see Using Contributor Insights to Analyze
-// High-Cardinality Data (https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/ContributorInsights.html)
-// . If you create a rule, delete it, and then re-create it with the same name,
+// log group. For more information, see [Using Contributor Insights to Analyze High-Cardinality Data].
+//
+// If you create a rule, delete it, and then re-create it with the same name,
 // historical data from the first time the rule was created might not be available.
+//
+// [Using Contributor Insights to Analyze High-Cardinality Data]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/ContributorInsights.html
 func (c *Client) PutInsightRule(ctx context.Context, params *PutInsightRuleInput, optFns ...func(*Options)) (*PutInsightRuleOutput, error) {
 	if params == nil {
 		params = &PutInsightRuleInput{}
@@ -36,8 +36,9 @@ func (c *Client) PutInsightRule(ctx context.Context, params *PutInsightRuleInput
 type PutInsightRuleInput struct {
 
 	// The definition of the rule, as a JSON object. For details on the valid syntax,
-	// see Contributor Insights Rule Syntax (https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/ContributorInsights-RuleSyntax.html)
-	// .
+	// see [Contributor Insights Rule Syntax].
+	//
+	// [Contributor Insights Rule Syntax]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/ContributorInsights-RuleSyntax.html
 	//
 	// This member is required.
 	RuleDefinition *string
@@ -47,22 +48,66 @@ type PutInsightRuleInput struct {
 	// This member is required.
 	RuleName *string
 
+	// Specify true to have this rule evaluate log events after they have been
+	// transformed by [Log transformation]. If you specify true , then the log events in log groups that
+	// have transformers will be evaluated by Contributor Insights after being
+	// transformed. Log groups that don't have transformers will still have their
+	// original log events evaluated by Contributor Insights.
+	//
+	// The default is false
+	//
+	// If a log group has a transformer, and transformation fails for some log events,
+	// those log events won't be evaluated by Contributor Insights. For information
+	// about investigating log transformation failures, see [Transformation metrics and errors].
+	//
+	// [Transformation metrics and errors]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/Transformation-Errors-Metrics.html
+	// [Log transformation]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html
+	ApplyOnTransformedLogs *bool
+
 	// The state of the rule. Valid values are ENABLED and DISABLED.
 	RuleState *string
 
 	// A list of key-value pairs to associate with the Contributor Insights rule. You
-	// can associate as many as 50 tags with a rule. Tags can help you organize and
-	// categorize your resources. You can also use them to scope user permissions, by
-	// granting a user permission to access or change only the resources that have
-	// certain tag values. To be able to associate tags with a rule, you must have the
+	// can associate as many as 50 tags with a rule.
+	//
+	// Tags can help you organize and categorize your resources. You can also use them
+	// to scope user permissions, by granting a user permission to access or change
+	// only the resources that have certain tag values.
+	//
+	// To be able to associate tags with a rule, you must have the
 	// cloudwatch:TagResource permission in addition to the cloudwatch:PutInsightRule
-	// permission. If you are using this operation to update an existing Contributor
-	// Insights rule, any tags you specify in this parameter are ignored. To change the
-	// tags of an existing rule, use TagResource (https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_TagResource.html)
-	// .
+	// permission.
+	//
+	// If you are using this operation to update an existing Contributor Insights
+	// rule, any tags you specify in this parameter are ignored. To change the tags of
+	// an existing rule, use [TagResource].
+	//
+	// [TagResource]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_TagResource.html
 	Tags []types.Tag
 
 	noSmithyDocumentSerde
+}
+
+func (v *PutInsightRuleInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutInsightRuleInput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutInsightRuleInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.ApplyOnTransformedLogs != nil {
+		s.WriteBool(schemas.PutInsightRuleInput_ApplyOnTransformedLogs, *v.ApplyOnTransformedLogs)
+	}
+	if v.RuleDefinition != nil {
+		s.WriteString(schemas.PutInsightRuleInput_RuleDefinition, *v.RuleDefinition)
+	}
+	if v.RuleName != nil {
+		s.WriteString(schemas.PutInsightRuleInput_RuleName, *v.RuleName)
+	}
+	if v.RuleState != nil {
+		s.WriteString(schemas.PutInsightRuleInput_RuleState, *v.RuleState)
+	}
+	serializeTagList(s, schemas.PutInsightRuleInput_Tags, v.Tags)
 }
 
 type PutInsightRuleOutput struct {
@@ -72,68 +117,45 @@ type PutInsightRuleOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutInsightRuleOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutInsightRuleOutput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutInsightRuleOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *PutInsightRuleOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.PutInsightRuleOutput, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationPutInsightRuleMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutInsightRule, schemas.PutInsightRuleInput, schemas.PutInsightRuleOutput)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpPutInsightRule{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutInsightRule, schemas.PutInsightRuleInput, schemas.PutInsightRuleOutput), output: &PutInsightRuleOutput{}}, middleware.After); err != nil {
 		return err
-	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpPutInsightRule{}, middleware.After)
-	if err != nil {
-		return err
-	}
-	if err := addProtocolFinalizerMiddlewares(stack, options, "PutInsightRule"); err != nil {
-		return fmt.Errorf("add protocol finalizers: %v", err)
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
-	if err = addSetLoggerMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack, options); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpPutInsightRuleValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opPutInsightRule(options.Region), middleware.Before); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -148,13 +170,8 @@ func (c *Client) addOperationPutInsightRuleMiddlewares(stack *middleware.Stack, 
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	return nil
-}
-
-func newServiceMetadataMiddleware_opPutInsightRule(region string) *awsmiddleware.RegisterServiceMetadata {
-	return &awsmiddleware.RegisterServiceMetadata{
-		Region:        region,
-		ServiceID:     ServiceID,
-		OperationName: "PutInsightRule",
+	if err = addInterceptors(stack, options); err != nil {
+		return err
 	}
+	return nil
 }

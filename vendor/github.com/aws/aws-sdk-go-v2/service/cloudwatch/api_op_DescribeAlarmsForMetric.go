@@ -4,19 +4,18 @@ package cloudwatch
 
 import (
 	"context"
-	"fmt"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Retrieves the alarms for the specified metric. To filter the results, specify a
-// statistic, period, or unit. This operation retrieves only standard alarms that
-// are based on the specified metric. It does not return alarms based on math
-// expressions that use the specified metric, or composite alarms that use the
-// specified metric.
+// statistic, period, or unit.
+//
+// This operation retrieves only standard alarms that are based on the specified
+// metric. It does not return alarms based on math expressions that use the
+// specified metric, or composite alarms that use the specified metric.
 func (c *Client) DescribeAlarmsForMetric(ctx context.Context, params *DescribeAlarmsForMetricInput, optFns ...func(*Options)) (*DescribeAlarmsForMetricOutput, error) {
 	if params == nil {
 		params = &DescribeAlarmsForMetricInput{}
@@ -64,6 +63,34 @@ type DescribeAlarmsForMetricInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeAlarmsForMetricInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeAlarmsForMetricInput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeAlarmsForMetricInput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeDimensions(s, schemas.DescribeAlarmsForMetricInput_Dimensions, v.Dimensions)
+	if v.ExtendedStatistic != nil {
+		s.WriteString(schemas.DescribeAlarmsForMetricInput_ExtendedStatistic, *v.ExtendedStatistic)
+	}
+	if v.MetricName != nil {
+		s.WriteString(schemas.DescribeAlarmsForMetricInput_MetricName, *v.MetricName)
+	}
+	if v.Namespace != nil {
+		s.WriteString(schemas.DescribeAlarmsForMetricInput_Namespace, *v.Namespace)
+	}
+	if v.Period != nil {
+		s.WriteInt32(schemas.DescribeAlarmsForMetricInput_Period, *v.Period)
+	}
+	if v.Statistic != "" {
+		s.WriteString(schemas.DescribeAlarmsForMetricInput_Statistic, string(v.Statistic))
+	}
+	if v.Unit != "" {
+		s.WriteString(schemas.DescribeAlarmsForMetricInput_Unit, string(v.Unit))
+	}
+}
+
 type DescribeAlarmsForMetricOutput struct {
 
 	// The information for each alarm with the specified metric.
@@ -75,68 +102,48 @@ type DescribeAlarmsForMetricOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeAlarmsForMetricOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeAlarmsForMetricOutput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeAlarmsForMetricOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeMetricAlarms(s, schemas.DescribeAlarmsForMetricOutput_MetricAlarms, v.MetricAlarms)
+}
+func (v *DescribeAlarmsForMetricOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.DescribeAlarmsForMetricOutput, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.DescribeAlarmsForMetricOutput_MetricAlarms:
+			return deserializeMetricAlarms(d, schemas.DescribeAlarmsForMetricOutput_MetricAlarms, &v.MetricAlarms)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDescribeAlarmsForMetricMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeAlarmsForMetric, schemas.DescribeAlarmsForMetricInput, schemas.DescribeAlarmsForMetricOutput)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpDescribeAlarmsForMetric{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeAlarmsForMetric, schemas.DescribeAlarmsForMetricInput, schemas.DescribeAlarmsForMetricOutput), output: &DescribeAlarmsForMetricOutput{}}, middleware.After); err != nil {
 		return err
-	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpDescribeAlarmsForMetric{}, middleware.After)
-	if err != nil {
-		return err
-	}
-	if err := addProtocolFinalizerMiddlewares(stack, options, "DescribeAlarmsForMetric"); err != nil {
-		return fmt.Errorf("add protocol finalizers: %v", err)
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
-	if err = addSetLoggerMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack, options); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpDescribeAlarmsForMetricValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeAlarmsForMetric(options.Region), middleware.Before); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -151,13 +158,8 @@ func (c *Client) addOperationDescribeAlarmsForMetricMiddlewares(stack *middlewar
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	return nil
-}
-
-func newServiceMetadataMiddleware_opDescribeAlarmsForMetric(region string) *awsmiddleware.RegisterServiceMetadata {
-	return &awsmiddleware.RegisterServiceMetadata{
-		Region:        region,
-		ServiceID:     ServiceID,
-		OperationName: "DescribeAlarmsForMetric",
+	if err = addInterceptors(stack, options); err != nil {
+		return err
 	}
+	return nil
 }

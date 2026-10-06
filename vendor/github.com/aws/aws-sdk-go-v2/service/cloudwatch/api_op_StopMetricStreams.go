@@ -4,11 +4,9 @@ package cloudwatch
 
 import (
 	"context"
-	"fmt"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Stops the streaming of metrics for one or more of your metric streams.
@@ -29,15 +27,26 @@ func (c *Client) StopMetricStreams(ctx context.Context, params *StopMetricStream
 
 type StopMetricStreamsInput struct {
 
-	// The array of the names of metric streams to stop streaming. This is an "all or
-	// nothing" operation. If you do not have permission to access all of the metric
-	// streams that you list here, then none of the streams that you list in the
-	// operation will stop streaming.
+	// The array of the names of metric streams to stop streaming.
+	//
+	// This is an "all or nothing" operation. If you do not have permission to access
+	// all of the metric streams that you list here, then none of the streams that you
+	// list in the operation will stop streaming.
 	//
 	// This member is required.
 	Names []string
 
 	noSmithyDocumentSerde
+}
+
+func (v *StopMetricStreamsInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.StopMetricStreamsInput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *StopMetricStreamsInput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeMetricStreamNames(s, schemas.StopMetricStreamsInput_Names, v.Names)
 }
 
 type StopMetricStreamsOutput struct {
@@ -47,68 +56,45 @@ type StopMetricStreamsOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *StopMetricStreamsOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.StopMetricStreamsOutput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *StopMetricStreamsOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *StopMetricStreamsOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.StopMetricStreamsOutput, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationStopMetricStreamsMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.StopMetricStreams, schemas.StopMetricStreamsInput, schemas.StopMetricStreamsOutput)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpStopMetricStreams{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.StopMetricStreams, schemas.StopMetricStreamsInput, schemas.StopMetricStreamsOutput), output: &StopMetricStreamsOutput{}}, middleware.After); err != nil {
 		return err
-	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpStopMetricStreams{}, middleware.After)
-	if err != nil {
-		return err
-	}
-	if err := addProtocolFinalizerMiddlewares(stack, options, "StopMetricStreams"); err != nil {
-		return fmt.Errorf("add protocol finalizers: %v", err)
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
-	if err = addSetLoggerMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack, options); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpStopMetricStreamsValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opStopMetricStreams(options.Region), middleware.Before); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -123,13 +109,8 @@ func (c *Client) addOperationStopMetricStreamsMiddlewares(stack *middleware.Stac
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	return nil
-}
-
-func newServiceMetadataMiddleware_opStopMetricStreams(region string) *awsmiddleware.RegisterServiceMetadata {
-	return &awsmiddleware.RegisterServiceMetadata{
-		Region:        region,
-		ServiceID:     ServiceID,
-		OperationName: "StopMetricStreams",
+	if err = addInterceptors(stack, options); err != nil {
+		return err
 	}
+	return nil
 }

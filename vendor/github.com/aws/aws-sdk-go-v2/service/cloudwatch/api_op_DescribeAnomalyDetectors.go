@@ -5,11 +5,10 @@ package cloudwatch
 import (
 	"context"
 	"fmt"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Lists the anomaly detection models that you have created in your account. For
@@ -35,6 +34,12 @@ func (c *Client) DescribeAnomalyDetectors(ctx context.Context, params *DescribeA
 
 type DescribeAnomalyDetectorsInput struct {
 
+	// Specifies the unique identifiers of the anomaly detectors to describe. You can
+	// specify up to 50 identifiers. If you specify this parameter, you cannot also
+	// specify the Namespace , MetricName , Dimensions , or AnomalyDetectorTypes
+	// metric filters.
+	AnomalyDetectorIds []string
+
 	// The anomaly detector types to request when using DescribeAnomalyDetectorsInput .
 	// If empty, defaults to SINGLE_METRIC .
 	AnomalyDetectorTypes []types.AnomalyDetectorType
@@ -46,8 +51,10 @@ type DescribeAnomalyDetectorsInput struct {
 	Dimensions []types.Dimension
 
 	// The maximum number of results to return in one operation. The maximum value
-	// that you can specify is 100. To retrieve the remaining results, make another
-	// call with the returned NextToken value.
+	// that you can specify is 100.
+	//
+	// To retrieve the remaining results, make another call with the returned NextToken
+	// value.
 	MaxResults *int32
 
 	// Limits the results to only the anomaly detection models that are associated
@@ -66,6 +73,30 @@ type DescribeAnomalyDetectorsInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeAnomalyDetectorsInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeAnomalyDetectorsInput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeAnomalyDetectorsInput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeAnomalyDetectorIds(s, schemas.DescribeAnomalyDetectorsInput_AnomalyDetectorIds, v.AnomalyDetectorIds)
+	serializeAnomalyDetectorTypes(s, schemas.DescribeAnomalyDetectorsInput_AnomalyDetectorTypes, v.AnomalyDetectorTypes)
+	serializeDimensions(s, schemas.DescribeAnomalyDetectorsInput_Dimensions, v.Dimensions)
+	if v.MaxResults != nil {
+		s.WriteInt32(schemas.DescribeAnomalyDetectorsInput_MaxResults, *v.MaxResults)
+	}
+	if v.MetricName != nil {
+		s.WriteString(schemas.DescribeAnomalyDetectorsInput_MetricName, *v.MetricName)
+	}
+	if v.Namespace != nil {
+		s.WriteString(schemas.DescribeAnomalyDetectorsInput_Namespace, *v.Namespace)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeAnomalyDetectorsInput_NextToken, *v.NextToken)
+	}
+}
+
 type DescribeAnomalyDetectorsOutput struct {
 
 	// The list of anomaly detection models returned by the operation.
@@ -81,68 +112,54 @@ type DescribeAnomalyDetectorsOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeAnomalyDetectorsOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeAnomalyDetectorsOutput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeAnomalyDetectorsOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeAnomalyDetectors(s, schemas.DescribeAnomalyDetectorsOutput_AnomalyDetectors, v.AnomalyDetectors)
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeAnomalyDetectorsOutput_NextToken, *v.NextToken)
+	}
+}
+func (v *DescribeAnomalyDetectorsOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.DescribeAnomalyDetectorsOutput, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.DescribeAnomalyDetectorsOutput_AnomalyDetectors:
+			return deserializeAnomalyDetectors(d, schemas.DescribeAnomalyDetectorsOutput_AnomalyDetectors, &v.AnomalyDetectors)
+		case schemas.DescribeAnomalyDetectorsOutput_NextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.DescribeAnomalyDetectorsOutput_NextToken, v.NextToken)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDescribeAnomalyDetectorsMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeAnomalyDetectors, schemas.DescribeAnomalyDetectorsInput, schemas.DescribeAnomalyDetectorsOutput)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpDescribeAnomalyDetectors{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeAnomalyDetectors, schemas.DescribeAnomalyDetectorsInput, schemas.DescribeAnomalyDetectorsOutput), output: &DescribeAnomalyDetectorsOutput{}}, middleware.After); err != nil {
 		return err
-	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpDescribeAnomalyDetectors{}, middleware.After)
-	if err != nil {
-		return err
-	}
-	if err := addProtocolFinalizerMiddlewares(stack, options, "DescribeAnomalyDetectors"); err != nil {
-		return fmt.Errorf("add protocol finalizers: %v", err)
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
-	if err = addSetLoggerMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack, options); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpDescribeAnomalyDetectorsValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeAnomalyDetectors(options.Region), middleware.Before); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -157,23 +174,20 @@ func (c *Client) addOperationDescribeAnomalyDetectorsMiddlewares(stack *middlewa
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// DescribeAnomalyDetectorsAPIClient is a client that implements the
-// DescribeAnomalyDetectors operation.
-type DescribeAnomalyDetectorsAPIClient interface {
-	DescribeAnomalyDetectors(context.Context, *DescribeAnomalyDetectorsInput, ...func(*Options)) (*DescribeAnomalyDetectorsOutput, error)
-}
-
-var _ DescribeAnomalyDetectorsAPIClient = (*Client)(nil)
 
 // DescribeAnomalyDetectorsPaginatorOptions is the paginator options for
 // DescribeAnomalyDetectors
 type DescribeAnomalyDetectorsPaginatorOptions struct {
 	// The maximum number of results to return in one operation. The maximum value
-	// that you can specify is 100. To retrieve the remaining results, make another
-	// call with the returned NextToken value.
+	// that you can specify is 100.
+	//
+	// To retrieve the remaining results, make another call with the returned NextToken
+	// value.
 	Limit int32
 
 	// Set to true if pagination should stop if the service returns a pagination token
@@ -235,6 +249,9 @@ func (p *DescribeAnomalyDetectorsPaginator) NextPage(ctx context.Context, optFns
 	}
 	params.MaxResults = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.DescribeAnomalyDetectors(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -254,10 +271,10 @@ func (p *DescribeAnomalyDetectorsPaginator) NextPage(ctx context.Context, optFns
 	return result, nil
 }
 
-func newServiceMetadataMiddleware_opDescribeAnomalyDetectors(region string) *awsmiddleware.RegisterServiceMetadata {
-	return &awsmiddleware.RegisterServiceMetadata{
-		Region:        region,
-		ServiceID:     ServiceID,
-		OperationName: "DescribeAnomalyDetectors",
-	}
+// DescribeAnomalyDetectorsAPIClient is a client that implements the
+// DescribeAnomalyDetectors operation.
+type DescribeAnomalyDetectorsAPIClient interface {
+	DescribeAnomalyDetectors(context.Context, *DescribeAnomalyDetectorsInput, ...func(*Options)) (*DescribeAnomalyDetectorsOutput, error)
 }
+
+var _ DescribeAnomalyDetectorsAPIClient = (*Client)(nil)

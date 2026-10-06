@@ -5,24 +5,23 @@ package cloudwatch
 import (
 	"context"
 	"fmt"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 	smithytime "github.com/aws/smithy-go/time"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 	smithywaiter "github.com/aws/smithy-go/waiter"
-	"github.com/jmespath/go-jmespath"
 	"strconv"
 	"time"
 )
 
 // Retrieves the specified alarms. You can filter the results by specifying a
-// prefix for the alarm name, the alarm state, or a prefix for any action. To use
-// this operation and return information about composite alarms, you must be signed
-// on with the cloudwatch:DescribeAlarms permission that is scoped to * . You can't
-// return information about composite alarms if your cloudwatch:DescribeAlarms
-// permission has a narrower scope.
+// prefix for the alarm name, the alarm state, or a prefix for any action.
+//
+// To use this operation and return information about composite alarms, you must
+// be signed on with the cloudwatch:DescribeAlarms permission that is scoped to * .
+// You can't return information about composite alarms if your
+// cloudwatch:DescribeAlarms permission has a narrower scope.
 func (c *Client) DescribeAlarms(ctx context.Context, params *DescribeAlarmsInput, optFns ...func(*Options)) (*DescribeAlarmsOutput, error) {
 	if params == nil {
 		params = &DescribeAlarmsInput{}
@@ -46,20 +45,28 @@ type DescribeAlarmsInput struct {
 	ActionPrefix *string
 
 	// An alarm name prefix. If you specify this parameter, you receive information
-	// about all alarms that have names that start with this prefix. If this parameter
-	// is specified, you cannot specify AlarmNames .
+	// about all alarms that have names that start with this prefix.
+	//
+	// If this parameter is specified, you cannot specify AlarmNames .
 	AlarmNamePrefix *string
 
 	// The names of the alarms to retrieve information about.
 	AlarmNames []string
 
 	// Use this parameter to specify whether you want the operation to return metric
-	// alarms or composite alarms. If you omit this parameter, only metric alarms are
-	// returned, even if composite alarms exist in the account. For example, if you
-	// omit this parameter or specify MetricAlarms , the operation returns only a list
-	// of metric alarms. It does not return any composite alarms, even if composite
-	// alarms exist in the account. If you specify CompositeAlarms , the operation
-	// returns only a list of composite alarms, and does not return any metric alarms.
+	// alarms, composite alarms, or log alarms. If you omit this parameter, only metric
+	// alarms are returned, even if composite alarms or log alarms exist in the
+	// account.
+	//
+	// For example, if you omit this parameter or specify MetricAlarms , the operation
+	// returns only a list of metric alarms. It does not return any composite alarms or
+	// log alarms, even if they exist in the account.
+	//
+	// If you specify CompositeAlarms , the operation returns only a list of composite
+	// alarms, and does not return any metric alarms or log alarms.
+	//
+	// If you specify LogAlarms , the operation returns only a list of log alarms, and
+	// does not return any metric alarms or composite alarms.
 	AlarmTypes []types.AlarmType
 
 	// If you use this parameter and specify the name of a composite alarm, the
@@ -67,13 +74,17 @@ type DescribeAlarmsInput struct {
 	// specify. These are the metric alarms and composite alarms referenced in the
 	// AlarmRule field of the composite alarm that you specify in ChildrenOfAlarmName .
 	// Information about the composite alarm that you name in ChildrenOfAlarmName is
-	// not returned. If you specify ChildrenOfAlarmName , you cannot specify any other
-	// parameters in the request except for MaxRecords and NextToken . If you do so,
-	// you receive a validation error. Only the Alarm Name , ARN , StateValue
-	// (OK/ALARM/INSUFFICIENT_DATA), and StateUpdatedTimestamp information are
-	// returned by this operation when you use this parameter. To get complete
-	// information about these alarms, perform another DescribeAlarms operation and
-	// specify the parent alarm names in the AlarmNames parameter.
+	// not returned.
+	//
+	// If you specify ChildrenOfAlarmName , you cannot specify any other parameters in
+	// the request except for MaxRecords and NextToken . If you do so, you receive a
+	// validation error.
+	//
+	// Only the Alarm Name , ARN , StateValue (OK/ALARM/INSUFFICIENT_DATA), and
+	// StateUpdatedTimestamp information are returned by this operation when you use
+	// this parameter. To get complete information about these alarms, perform another
+	// DescribeAlarms operation and specify the parent alarm names in the AlarmNames
+	// parameter.
 	ChildrenOfAlarmName *string
 
 	// The maximum number of alarm descriptions to retrieve.
@@ -87,11 +98,14 @@ type DescribeAlarmsInput struct {
 	// the operation returns information about the "parent" alarms of the alarm you
 	// specify. These are the composite alarms that have AlarmRule parameters that
 	// reference the alarm named in ParentsOfAlarmName . Information about the alarm
-	// that you specify in ParentsOfAlarmName is not returned. If you specify
-	// ParentsOfAlarmName , you cannot specify any other parameters in the request
-	// except for MaxRecords and NextToken . If you do so, you receive a validation
-	// error. Only the Alarm Name and ARN are returned by this operation when you use
-	// this parameter. To get complete information about these alarms, perform another
+	// that you specify in ParentsOfAlarmName is not returned.
+	//
+	// If you specify ParentsOfAlarmName , you cannot specify any other parameters in
+	// the request except for MaxRecords and NextToken . If you do so, you receive a
+	// validation error.
+	//
+	// Only the Alarm Name and ARN are returned by this operation when you use this
+	// parameter. To get complete information about these alarms, perform another
 	// DescribeAlarms operation and specify the parent alarm names in the AlarmNames
 	// parameter.
 	ParentsOfAlarmName *string
@@ -103,10 +117,45 @@ type DescribeAlarmsInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeAlarmsInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeAlarmsInput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeAlarmsInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.ActionPrefix != nil {
+		s.WriteString(schemas.DescribeAlarmsInput_ActionPrefix, *v.ActionPrefix)
+	}
+	if v.AlarmNamePrefix != nil {
+		s.WriteString(schemas.DescribeAlarmsInput_AlarmNamePrefix, *v.AlarmNamePrefix)
+	}
+	serializeAlarmNames(s, schemas.DescribeAlarmsInput_AlarmNames, v.AlarmNames)
+	serializeAlarmTypes(s, schemas.DescribeAlarmsInput_AlarmTypes, v.AlarmTypes)
+	if v.ChildrenOfAlarmName != nil {
+		s.WriteString(schemas.DescribeAlarmsInput_ChildrenOfAlarmName, *v.ChildrenOfAlarmName)
+	}
+	if v.MaxRecords != nil {
+		s.WriteInt32(schemas.DescribeAlarmsInput_MaxRecords, *v.MaxRecords)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeAlarmsInput_NextToken, *v.NextToken)
+	}
+	if v.ParentsOfAlarmName != nil {
+		s.WriteString(schemas.DescribeAlarmsInput_ParentsOfAlarmName, *v.ParentsOfAlarmName)
+	}
+	if v.StateValue != "" {
+		s.WriteString(schemas.DescribeAlarmsInput_StateValue, string(v.StateValue))
+	}
+}
+
 type DescribeAlarmsOutput struct {
 
 	// The information about any composite alarms returned by the operation.
 	CompositeAlarms []types.CompositeAlarm
+
+	// The information about any log alarms returned by the operation.
+	LogAlarms []types.LogAlarm
 
 	// The information about any metric alarms returned by the operation.
 	MetricAlarms []types.MetricAlarm
@@ -120,65 +169,57 @@ type DescribeAlarmsOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeAlarmsOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeAlarmsOutput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeAlarmsOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeCompositeAlarms(s, schemas.DescribeAlarmsOutput_CompositeAlarms, v.CompositeAlarms)
+	serializeLogAlarms(s, schemas.DescribeAlarmsOutput_LogAlarms, v.LogAlarms)
+	serializeMetricAlarms(s, schemas.DescribeAlarmsOutput_MetricAlarms, v.MetricAlarms)
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeAlarmsOutput_NextToken, *v.NextToken)
+	}
+}
+func (v *DescribeAlarmsOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.DescribeAlarmsOutput, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.DescribeAlarmsOutput_CompositeAlarms:
+			return deserializeCompositeAlarms(d, schemas.DescribeAlarmsOutput_CompositeAlarms, &v.CompositeAlarms)
+		case schemas.DescribeAlarmsOutput_LogAlarms:
+			return deserializeLogAlarms(d, schemas.DescribeAlarmsOutput_LogAlarms, &v.LogAlarms)
+		case schemas.DescribeAlarmsOutput_MetricAlarms:
+			return deserializeMetricAlarms(d, schemas.DescribeAlarmsOutput_MetricAlarms, &v.MetricAlarms)
+		case schemas.DescribeAlarmsOutput_NextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.DescribeAlarmsOutput_NextToken, v.NextToken)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDescribeAlarmsMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeAlarms, schemas.DescribeAlarmsInput, schemas.DescribeAlarmsOutput)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpDescribeAlarms{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeAlarms, schemas.DescribeAlarmsInput, schemas.DescribeAlarmsOutput), output: &DescribeAlarmsOutput{}}, middleware.After); err != nil {
 		return err
-	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpDescribeAlarms{}, middleware.After)
-	if err != nil {
-		return err
-	}
-	if err := addProtocolFinalizerMiddlewares(stack, options, "DescribeAlarms"); err != nil {
-		return fmt.Errorf("add protocol finalizers: %v", err)
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
-	if err = addSetLoggerMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack, options); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeAlarms(options.Region), middleware.Before); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -193,97 +234,10 @@ func (c *Client) addOperationDescribeAlarmsMiddlewares(stack *middleware.Stack, 
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
-}
-
-// DescribeAlarmsAPIClient is a client that implements the DescribeAlarms
-// operation.
-type DescribeAlarmsAPIClient interface {
-	DescribeAlarms(context.Context, *DescribeAlarmsInput, ...func(*Options)) (*DescribeAlarmsOutput, error)
-}
-
-var _ DescribeAlarmsAPIClient = (*Client)(nil)
-
-// DescribeAlarmsPaginatorOptions is the paginator options for DescribeAlarms
-type DescribeAlarmsPaginatorOptions struct {
-	// The maximum number of alarm descriptions to retrieve.
-	Limit int32
-
-	// Set to true if pagination should stop if the service returns a pagination token
-	// that matches the most recent token provided to the service.
-	StopOnDuplicateToken bool
-}
-
-// DescribeAlarmsPaginator is a paginator for DescribeAlarms
-type DescribeAlarmsPaginator struct {
-	options   DescribeAlarmsPaginatorOptions
-	client    DescribeAlarmsAPIClient
-	params    *DescribeAlarmsInput
-	nextToken *string
-	firstPage bool
-}
-
-// NewDescribeAlarmsPaginator returns a new DescribeAlarmsPaginator
-func NewDescribeAlarmsPaginator(client DescribeAlarmsAPIClient, params *DescribeAlarmsInput, optFns ...func(*DescribeAlarmsPaginatorOptions)) *DescribeAlarmsPaginator {
-	if params == nil {
-		params = &DescribeAlarmsInput{}
-	}
-
-	options := DescribeAlarmsPaginatorOptions{}
-	if params.MaxRecords != nil {
-		options.Limit = *params.MaxRecords
-	}
-
-	for _, fn := range optFns {
-		fn(&options)
-	}
-
-	return &DescribeAlarmsPaginator{
-		options:   options,
-		client:    client,
-		params:    params,
-		firstPage: true,
-		nextToken: params.NextToken,
-	}
-}
-
-// HasMorePages returns a boolean indicating whether more pages are available
-func (p *DescribeAlarmsPaginator) HasMorePages() bool {
-	return p.firstPage || (p.nextToken != nil && len(*p.nextToken) != 0)
-}
-
-// NextPage retrieves the next DescribeAlarms page.
-func (p *DescribeAlarmsPaginator) NextPage(ctx context.Context, optFns ...func(*Options)) (*DescribeAlarmsOutput, error) {
-	if !p.HasMorePages() {
-		return nil, fmt.Errorf("no more pages available")
-	}
-
-	params := *p.params
-	params.NextToken = p.nextToken
-
-	var limit *int32
-	if p.options.Limit > 0 {
-		limit = &p.options.Limit
-	}
-	params.MaxRecords = limit
-
-	result, err := p.client.DescribeAlarms(ctx, &params, optFns...)
-	if err != nil {
-		return nil, err
-	}
-	p.firstPage = false
-
-	prevToken := p.nextToken
-	p.nextToken = result.NextToken
-
-	if p.options.StopOnDuplicateToken &&
-		prevToken != nil &&
-		p.nextToken != nil &&
-		*prevToken == *p.nextToken {
-		p.nextToken = nil
-	}
-
-	return result, nil
 }
 
 // AlarmExistsWaiterOptions are waiter options for AlarmExistsWaiter
@@ -292,7 +246,16 @@ type AlarmExistsWaiterOptions struct {
 	// Set of options to modify how an operation is invoked. These apply to all
 	// operations invoked for this client. Use functional options on operation call to
 	// modify this list for per operation behavior.
+	//
+	// Passing options here is functionally equivalent to passing values to this
+	// config's ClientOptions field that extend the inner client's APIOptions directly.
 	APIOptions []func(*middleware.Stack) error
+
+	// Functional options to be passed to all operations invoked by this client.
+	//
+	// Function values that modify the inner APIOptions are applied after the waiter
+	// config's own APIOptions modifiers.
+	ClientOptions []func(*Options)
 
 	// MinDelay is the minimum amount of time to delay between retries. If unset,
 	// AlarmExistsWaiter will use default minimum delay of 5 seconds. Note that
@@ -309,12 +272,13 @@ type AlarmExistsWaiterOptions struct {
 
 	// Retryable is function that can be used to override the service defined
 	// waiter-behavior based on operation output, or returned error. This function is
-	// used by the waiter to decide if a state is retryable or a terminal state. By
-	// default service-modeled logic will populate this option. This option can thus be
-	// used to define a custom waiter state with fall-back to service-modeled waiter
-	// state mutators.The function returns an error in case of a failure state. In case
-	// of retry state, this function returns a bool value of true and nil error, while
-	// in case of success it returns a bool value of false and nil error.
+	// used by the waiter to decide if a state is retryable or a terminal state.
+	//
+	// By default service-modeled logic will populate this option. This option can
+	// thus be used to define a custom waiter state with fall-back to service-modeled
+	// waiter state mutators.The function returns an error in case of a failure state.
+	// In case of retry state, this function returns a bool value of true and nil
+	// error, while in case of success it returns a bool value of false and nil error.
 	Retryable func(context.Context, *DescribeAlarmsInput, *DescribeAlarmsOutput, error) (bool, error)
 }
 
@@ -390,7 +354,16 @@ func (w *AlarmExistsWaiter) WaitForOutput(ctx context.Context, params *DescribeA
 		}
 
 		out, err := w.client.DescribeAlarms(ctx, params, func(o *Options) {
+			baseOpts := []func(*Options){
+				addIsWaiterUserAgent,
+			}
 			o.APIOptions = append(o.APIOptions, apiOptions...)
+			for _, opt := range baseOpts {
+				opt(o)
+			}
+			for _, opt := range options.ClientOptions {
+				opt(o)
+			}
 		})
 
 		retryable, err := options.Retryable(ctx, params, out, err)
@@ -426,26 +399,23 @@ func (w *AlarmExistsWaiter) WaitForOutput(ctx context.Context, params *DescribeA
 func alarmExistsStateRetryable(ctx context.Context, input *DescribeAlarmsInput, output *DescribeAlarmsOutput, err error) (bool, error) {
 
 	if err == nil {
-		pathValue, err := jmespath.Search("length(MetricAlarms[]) > `0`", output)
-		if err != nil {
-			return false, fmt.Errorf("error evaluating waiter state: %w", err)
-		}
-
+		v1 := output.MetricAlarms
+		v2 := len(v1)
+		v3 := 0
+		v4 := int64(v2) > int64(v3)
 		expectedValue := "true"
 		bv, err := strconv.ParseBool(expectedValue)
 		if err != nil {
 			return false, fmt.Errorf("error parsing boolean from string %w", err)
 		}
-		value, ok := pathValue.(bool)
-		if !ok {
-			return false, fmt.Errorf("waiter comparator expected bool value got %T", pathValue)
-		}
-
-		if value == bv {
+		if v4 == bv {
 			return false, nil
 		}
 	}
 
+	if err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
@@ -456,7 +426,16 @@ type CompositeAlarmExistsWaiterOptions struct {
 	// Set of options to modify how an operation is invoked. These apply to all
 	// operations invoked for this client. Use functional options on operation call to
 	// modify this list for per operation behavior.
+	//
+	// Passing options here is functionally equivalent to passing values to this
+	// config's ClientOptions field that extend the inner client's APIOptions directly.
 	APIOptions []func(*middleware.Stack) error
+
+	// Functional options to be passed to all operations invoked by this client.
+	//
+	// Function values that modify the inner APIOptions are applied after the waiter
+	// config's own APIOptions modifiers.
+	ClientOptions []func(*Options)
 
 	// MinDelay is the minimum amount of time to delay between retries. If unset,
 	// CompositeAlarmExistsWaiter will use default minimum delay of 5 seconds. Note
@@ -474,12 +453,13 @@ type CompositeAlarmExistsWaiterOptions struct {
 
 	// Retryable is function that can be used to override the service defined
 	// waiter-behavior based on operation output, or returned error. This function is
-	// used by the waiter to decide if a state is retryable or a terminal state. By
-	// default service-modeled logic will populate this option. This option can thus be
-	// used to define a custom waiter state with fall-back to service-modeled waiter
-	// state mutators.The function returns an error in case of a failure state. In case
-	// of retry state, this function returns a bool value of true and nil error, while
-	// in case of success it returns a bool value of false and nil error.
+	// used by the waiter to decide if a state is retryable or a terminal state.
+	//
+	// By default service-modeled logic will populate this option. This option can
+	// thus be used to define a custom waiter state with fall-back to service-modeled
+	// waiter state mutators.The function returns an error in case of a failure state.
+	// In case of retry state, this function returns a bool value of true and nil
+	// error, while in case of success it returns a bool value of false and nil error.
 	Retryable func(context.Context, *DescribeAlarmsInput, *DescribeAlarmsOutput, error) (bool, error)
 }
 
@@ -556,7 +536,16 @@ func (w *CompositeAlarmExistsWaiter) WaitForOutput(ctx context.Context, params *
 		}
 
 		out, err := w.client.DescribeAlarms(ctx, params, func(o *Options) {
+			baseOpts := []func(*Options){
+				addIsWaiterUserAgent,
+			}
 			o.APIOptions = append(o.APIOptions, apiOptions...)
+			for _, opt := range baseOpts {
+				opt(o)
+			}
+			for _, opt := range options.ClientOptions {
+				opt(o)
+			}
 		})
 
 		retryable, err := options.Retryable(ctx, params, out, err)
@@ -592,33 +581,295 @@ func (w *CompositeAlarmExistsWaiter) WaitForOutput(ctx context.Context, params *
 func compositeAlarmExistsStateRetryable(ctx context.Context, input *DescribeAlarmsInput, output *DescribeAlarmsOutput, err error) (bool, error) {
 
 	if err == nil {
-		pathValue, err := jmespath.Search("length(CompositeAlarms[]) > `0`", output)
-		if err != nil {
-			return false, fmt.Errorf("error evaluating waiter state: %w", err)
-		}
-
+		v1 := output.CompositeAlarms
+		v2 := len(v1)
+		v3 := 0
+		v4 := int64(v2) > int64(v3)
 		expectedValue := "true"
 		bv, err := strconv.ParseBool(expectedValue)
 		if err != nil {
 			return false, fmt.Errorf("error parsing boolean from string %w", err)
 		}
-		value, ok := pathValue.(bool)
-		if !ok {
-			return false, fmt.Errorf("waiter comparator expected bool value got %T", pathValue)
-		}
-
-		if value == bv {
+		if v4 == bv {
 			return false, nil
 		}
 	}
 
+	if err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
-func newServiceMetadataMiddleware_opDescribeAlarms(region string) *awsmiddleware.RegisterServiceMetadata {
-	return &awsmiddleware.RegisterServiceMetadata{
-		Region:        region,
-		ServiceID:     ServiceID,
-		OperationName: "DescribeAlarms",
+// LogAlarmExistsWaiterOptions are waiter options for LogAlarmExistsWaiter
+type LogAlarmExistsWaiterOptions struct {
+
+	// Set of options to modify how an operation is invoked. These apply to all
+	// operations invoked for this client. Use functional options on operation call to
+	// modify this list for per operation behavior.
+	//
+	// Passing options here is functionally equivalent to passing values to this
+	// config's ClientOptions field that extend the inner client's APIOptions directly.
+	APIOptions []func(*middleware.Stack) error
+
+	// Functional options to be passed to all operations invoked by this client.
+	//
+	// Function values that modify the inner APIOptions are applied after the waiter
+	// config's own APIOptions modifiers.
+	ClientOptions []func(*Options)
+
+	// MinDelay is the minimum amount of time to delay between retries. If unset,
+	// LogAlarmExistsWaiter will use default minimum delay of 5 seconds. Note that
+	// MinDelay must resolve to a value lesser than or equal to the MaxDelay.
+	MinDelay time.Duration
+
+	// MaxDelay is the maximum amount of time to delay between retries. If unset or
+	// set to zero, LogAlarmExistsWaiter will use default max delay of 120 seconds.
+	// Note that MaxDelay must resolve to value greater than or equal to the MinDelay.
+	MaxDelay time.Duration
+
+	// LogWaitAttempts is used to enable logging for waiter retry attempts
+	LogWaitAttempts bool
+
+	// Retryable is function that can be used to override the service defined
+	// waiter-behavior based on operation output, or returned error. This function is
+	// used by the waiter to decide if a state is retryable or a terminal state.
+	//
+	// By default service-modeled logic will populate this option. This option can
+	// thus be used to define a custom waiter state with fall-back to service-modeled
+	// waiter state mutators.The function returns an error in case of a failure state.
+	// In case of retry state, this function returns a bool value of true and nil
+	// error, while in case of success it returns a bool value of false and nil error.
+	Retryable func(context.Context, *DescribeAlarmsInput, *DescribeAlarmsOutput, error) (bool, error)
+}
+
+// LogAlarmExistsWaiter defines the waiters for LogAlarmExists
+type LogAlarmExistsWaiter struct {
+	client DescribeAlarmsAPIClient
+
+	options LogAlarmExistsWaiterOptions
+}
+
+// NewLogAlarmExistsWaiter constructs a LogAlarmExistsWaiter.
+func NewLogAlarmExistsWaiter(client DescribeAlarmsAPIClient, optFns ...func(*LogAlarmExistsWaiterOptions)) *LogAlarmExistsWaiter {
+	options := LogAlarmExistsWaiterOptions{}
+	options.MinDelay = 5 * time.Second
+	options.MaxDelay = 120 * time.Second
+	options.Retryable = logAlarmExistsStateRetryable
+
+	for _, fn := range optFns {
+		fn(&options)
+	}
+	return &LogAlarmExistsWaiter{
+		client:  client,
+		options: options,
 	}
 }
+
+// Wait calls the waiter function for LogAlarmExists waiter. The maxWaitDur is the
+// maximum wait duration the waiter will wait. The maxWaitDur is required and must
+// be greater than zero.
+func (w *LogAlarmExistsWaiter) Wait(ctx context.Context, params *DescribeAlarmsInput, maxWaitDur time.Duration, optFns ...func(*LogAlarmExistsWaiterOptions)) error {
+	_, err := w.WaitForOutput(ctx, params, maxWaitDur, optFns...)
+	return err
+}
+
+// WaitForOutput calls the waiter function for LogAlarmExists waiter and returns
+// the output of the successful operation. The maxWaitDur is the maximum wait
+// duration the waiter will wait. The maxWaitDur is required and must be greater
+// than zero.
+func (w *LogAlarmExistsWaiter) WaitForOutput(ctx context.Context, params *DescribeAlarmsInput, maxWaitDur time.Duration, optFns ...func(*LogAlarmExistsWaiterOptions)) (*DescribeAlarmsOutput, error) {
+	if maxWaitDur <= 0 {
+		return nil, fmt.Errorf("maximum wait time for waiter must be greater than zero")
+	}
+
+	options := w.options
+	for _, fn := range optFns {
+		fn(&options)
+	}
+
+	if options.MaxDelay <= 0 {
+		options.MaxDelay = 120 * time.Second
+	}
+
+	if options.MinDelay > options.MaxDelay {
+		return nil, fmt.Errorf("minimum waiter delay %v must be lesser than or equal to maximum waiter delay of %v.", options.MinDelay, options.MaxDelay)
+	}
+
+	ctx, cancelFn := context.WithTimeout(ctx, maxWaitDur)
+	defer cancelFn()
+
+	logger := smithywaiter.Logger{}
+	remainingTime := maxWaitDur
+
+	var attempt int64
+	for {
+
+		attempt++
+		apiOptions := options.APIOptions
+		start := time.Now()
+
+		if options.LogWaitAttempts {
+			logger.Attempt = attempt
+			apiOptions = append([]func(*middleware.Stack) error{}, options.APIOptions...)
+			apiOptions = append(apiOptions, logger.AddLogger)
+		}
+
+		out, err := w.client.DescribeAlarms(ctx, params, func(o *Options) {
+			baseOpts := []func(*Options){
+				addIsWaiterUserAgent,
+			}
+			o.APIOptions = append(o.APIOptions, apiOptions...)
+			for _, opt := range baseOpts {
+				opt(o)
+			}
+			for _, opt := range options.ClientOptions {
+				opt(o)
+			}
+		})
+
+		retryable, err := options.Retryable(ctx, params, out, err)
+		if err != nil {
+			return nil, err
+		}
+		if !retryable {
+			return out, nil
+		}
+
+		remainingTime -= time.Since(start)
+		if remainingTime < options.MinDelay || remainingTime <= 0 {
+			break
+		}
+
+		// compute exponential backoff between waiter retries
+		delay, err := smithywaiter.ComputeDelay(
+			attempt, options.MinDelay, options.MaxDelay, remainingTime,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error computing waiter delay, %w", err)
+		}
+
+		remainingTime -= delay
+		// sleep for the delay amount before invoking a request
+		if err := smithytime.SleepWithContext(ctx, delay); err != nil {
+			return nil, fmt.Errorf("request cancelled while waiting, %w", err)
+		}
+	}
+	return nil, fmt.Errorf("exceeded max wait time for LogAlarmExists waiter")
+}
+
+func logAlarmExistsStateRetryable(ctx context.Context, input *DescribeAlarmsInput, output *DescribeAlarmsOutput, err error) (bool, error) {
+
+	if err == nil {
+		v1 := output.LogAlarms
+		v2 := len(v1)
+		v3 := 0
+		v4 := int64(v2) > int64(v3)
+		expectedValue := "true"
+		bv, err := strconv.ParseBool(expectedValue)
+		if err != nil {
+			return false, fmt.Errorf("error parsing boolean from string %w", err)
+		}
+		if v4 == bv {
+			return false, nil
+		}
+	}
+
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// DescribeAlarmsPaginatorOptions is the paginator options for DescribeAlarms
+type DescribeAlarmsPaginatorOptions struct {
+	// The maximum number of alarm descriptions to retrieve.
+	Limit int32
+
+	// Set to true if pagination should stop if the service returns a pagination token
+	// that matches the most recent token provided to the service.
+	StopOnDuplicateToken bool
+}
+
+// DescribeAlarmsPaginator is a paginator for DescribeAlarms
+type DescribeAlarmsPaginator struct {
+	options   DescribeAlarmsPaginatorOptions
+	client    DescribeAlarmsAPIClient
+	params    *DescribeAlarmsInput
+	nextToken *string
+	firstPage bool
+}
+
+// NewDescribeAlarmsPaginator returns a new DescribeAlarmsPaginator
+func NewDescribeAlarmsPaginator(client DescribeAlarmsAPIClient, params *DescribeAlarmsInput, optFns ...func(*DescribeAlarmsPaginatorOptions)) *DescribeAlarmsPaginator {
+	if params == nil {
+		params = &DescribeAlarmsInput{}
+	}
+
+	options := DescribeAlarmsPaginatorOptions{}
+	if params.MaxRecords != nil {
+		options.Limit = *params.MaxRecords
+	}
+
+	for _, fn := range optFns {
+		fn(&options)
+	}
+
+	return &DescribeAlarmsPaginator{
+		options:   options,
+		client:    client,
+		params:    params,
+		firstPage: true,
+		nextToken: params.NextToken,
+	}
+}
+
+// HasMorePages returns a boolean indicating whether more pages are available
+func (p *DescribeAlarmsPaginator) HasMorePages() bool {
+	return p.firstPage || (p.nextToken != nil && len(*p.nextToken) != 0)
+}
+
+// NextPage retrieves the next DescribeAlarms page.
+func (p *DescribeAlarmsPaginator) NextPage(ctx context.Context, optFns ...func(*Options)) (*DescribeAlarmsOutput, error) {
+	if !p.HasMorePages() {
+		return nil, fmt.Errorf("no more pages available")
+	}
+
+	params := *p.params
+	params.NextToken = p.nextToken
+
+	var limit *int32
+	if p.options.Limit > 0 {
+		limit = &p.options.Limit
+	}
+	params.MaxRecords = limit
+
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
+	result, err := p.client.DescribeAlarms(ctx, &params, optFns...)
+	if err != nil {
+		return nil, err
+	}
+	p.firstPage = false
+
+	prevToken := p.nextToken
+	p.nextToken = result.NextToken
+
+	if p.options.StopOnDuplicateToken &&
+		prevToken != nil &&
+		p.nextToken != nil &&
+		*prevToken == *p.nextToken {
+		p.nextToken = nil
+	}
+
+	return result, nil
+}
+
+// DescribeAlarmsAPIClient is a client that implements the DescribeAlarms
+// operation.
+type DescribeAlarmsAPIClient interface {
+	DescribeAlarms(context.Context, *DescribeAlarmsInput, ...func(*Options)) (*DescribeAlarmsOutput, error)
+}
+
+var _ DescribeAlarmsAPIClient = (*Client)(nil)

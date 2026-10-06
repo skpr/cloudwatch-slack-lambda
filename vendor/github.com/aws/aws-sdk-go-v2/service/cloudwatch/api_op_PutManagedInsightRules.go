@@ -4,22 +4,21 @@ package cloudwatch
 
 import (
 	"context"
-	"fmt"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Creates a managed Contributor Insights rule for a specified Amazon Web Services
-// resource. When you enable a managed rule, you create a Contributor Insights rule
-// that collects data from Amazon Web Services services. You cannot edit these
-// rules with PutInsightRule . The rules can be enabled, disabled, and deleted
-// using EnableInsightRules , DisableInsightRules , and DeleteInsightRules . If a
-// previously created managed rule is currently disabled, a subsequent call to this
-// API will re-enable it. Use ListManagedInsightRules to describe all available
-// rules.
+//	Creates a managed Contributor Insights rule for a specified Amazon Web
+//
+// Services resource. When you enable a managed rule, you create a Contributor
+// Insights rule that collects data from Amazon Web Services services. You cannot
+// edit these rules with PutInsightRule . The rules can be enabled, disabled, and
+// deleted using EnableInsightRules , DisableInsightRules , and DeleteInsightRules
+// . If a previously created managed rule is currently disabled, a subsequent call
+// to this API will re-enable it. Use ListManagedInsightRules to describe all
+// available rules.
 func (c *Client) PutManagedInsightRules(ctx context.Context, params *PutManagedInsightRulesInput, optFns ...func(*Options)) (*PutManagedInsightRulesOutput, error) {
 	if params == nil {
 		params = &PutManagedInsightRulesInput{}
@@ -37,7 +36,7 @@ func (c *Client) PutManagedInsightRules(ctx context.Context, params *PutManagedI
 
 type PutManagedInsightRulesInput struct {
 
-	// A list of ManagedRules to enable.
+	//  A list of ManagedRules to enable.
 	//
 	// This member is required.
 	ManagedRules []types.ManagedRule
@@ -45,9 +44,19 @@ type PutManagedInsightRulesInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutManagedInsightRulesInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutManagedInsightRulesInput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutManagedInsightRulesInput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeManagedRules(s, schemas.PutManagedInsightRulesInput_ManagedRules, v.ManagedRules)
+}
+
 type PutManagedInsightRulesOutput struct {
 
-	// An array that lists the rules that could not be enabled.
+	//  An array that lists the rules that could not be enabled.
 	Failures []types.PartialFailure
 
 	// Metadata pertaining to the operation's result.
@@ -56,68 +65,48 @@ type PutManagedInsightRulesOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutManagedInsightRulesOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutManagedInsightRulesOutput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutManagedInsightRulesOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeBatchFailures(s, schemas.PutManagedInsightRulesOutput_Failures, v.Failures)
+}
+func (v *PutManagedInsightRulesOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.PutManagedInsightRulesOutput, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.PutManagedInsightRulesOutput_Failures:
+			return deserializeBatchFailures(d, schemas.PutManagedInsightRulesOutput_Failures, &v.Failures)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationPutManagedInsightRulesMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutManagedInsightRules, schemas.PutManagedInsightRulesInput, schemas.PutManagedInsightRulesOutput)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpPutManagedInsightRules{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutManagedInsightRules, schemas.PutManagedInsightRulesInput, schemas.PutManagedInsightRulesOutput), output: &PutManagedInsightRulesOutput{}}, middleware.After); err != nil {
 		return err
-	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpPutManagedInsightRules{}, middleware.After)
-	if err != nil {
-		return err
-	}
-	if err := addProtocolFinalizerMiddlewares(stack, options, "PutManagedInsightRules"); err != nil {
-		return fmt.Errorf("add protocol finalizers: %v", err)
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
-	if err = addSetLoggerMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack, options); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpPutManagedInsightRulesValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opPutManagedInsightRules(options.Region), middleware.Before); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -132,13 +121,8 @@ func (c *Client) addOperationPutManagedInsightRulesMiddlewares(stack *middleware
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	return nil
-}
-
-func newServiceMetadataMiddleware_opPutManagedInsightRules(region string) *awsmiddleware.RegisterServiceMetadata {
-	return &awsmiddleware.RegisterServiceMetadata{
-		Region:        region,
-		ServiceID:     ServiceID,
-		OperationName: "PutManagedInsightRules",
+	if err = addInterceptors(stack, options); err != nil {
+		return err
 	}
+	return nil
 }

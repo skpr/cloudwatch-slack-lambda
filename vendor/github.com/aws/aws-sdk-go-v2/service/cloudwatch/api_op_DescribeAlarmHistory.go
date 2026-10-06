@@ -5,21 +5,22 @@ package cloudwatch
 import (
 	"context"
 	"fmt"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"time"
 )
 
 // Retrieves the history for the specified alarm. You can filter the results by
 // date range or item type. If an alarm name is not specified, the histories for
-// either all metric alarms or all composite alarms are returned. CloudWatch
-// retains the history of an alarm even if you delete the alarm. To use this
-// operation and return information about a composite alarm, you must be signed on
-// with the cloudwatch:DescribeAlarmHistory permission that is scoped to * . You
-// can't return information about composite alarms if your
+// either all metric alarms or all composite alarms are returned.
+//
+// CloudWatch retains the history of an alarm even if you delete the alarm.
+//
+// To use this operation and return information about a composite alarm, you must
+// be signed on with the cloudwatch:DescribeAlarmHistory permission that is scoped
+// to * . You can't return information about composite alarms if your
 // cloudwatch:DescribeAlarmHistory permission has a narrower scope.
 func (c *Client) DescribeAlarmHistory(ctx context.Context, params *DescribeAlarmHistoryInput, optFns ...func(*Options)) (*DescribeAlarmHistoryOutput, error) {
 	if params == nil {
@@ -38,12 +39,16 @@ func (c *Client) DescribeAlarmHistory(ctx context.Context, params *DescribeAlarm
 
 type DescribeAlarmHistoryInput struct {
 
+	// The unique identifier of a specific alarm contributor to filter the alarm
+	// history results.
+	AlarmContributorId *string
+
 	// The name of the alarm.
 	AlarmName *string
 
 	// Use this parameter to specify whether you want the operation to return metric
-	// alarms or composite alarms. If you omit this parameter, only metric alarms are
-	// returned.
+	// alarms, composite alarms, or log alarms. If you omit this parameter, only metric
+	// alarms are returned.
 	AlarmTypes []types.AlarmType
 
 	// The ending date to retrieve alarm history.
@@ -70,6 +75,40 @@ type DescribeAlarmHistoryInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeAlarmHistoryInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeAlarmHistoryInput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeAlarmHistoryInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AlarmContributorId != nil {
+		s.WriteString(schemas.DescribeAlarmHistoryInput_AlarmContributorId, *v.AlarmContributorId)
+	}
+	if v.AlarmName != nil {
+		s.WriteString(schemas.DescribeAlarmHistoryInput_AlarmName, *v.AlarmName)
+	}
+	serializeAlarmTypes(s, schemas.DescribeAlarmHistoryInput_AlarmTypes, v.AlarmTypes)
+	if v.EndDate != nil {
+		s.WriteTime(schemas.DescribeAlarmHistoryInput_EndDate, *v.EndDate)
+	}
+	if v.HistoryItemType != "" {
+		s.WriteString(schemas.DescribeAlarmHistoryInput_HistoryItemType, string(v.HistoryItemType))
+	}
+	if v.MaxRecords != nil {
+		s.WriteInt32(schemas.DescribeAlarmHistoryInput_MaxRecords, *v.MaxRecords)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeAlarmHistoryInput_NextToken, *v.NextToken)
+	}
+	if v.ScanBy != "" {
+		s.WriteString(schemas.DescribeAlarmHistoryInput_ScanBy, string(v.ScanBy))
+	}
+	if v.StartDate != nil {
+		s.WriteTime(schemas.DescribeAlarmHistoryInput_StartDate, *v.StartDate)
+	}
+}
+
 type DescribeAlarmHistoryOutput struct {
 
 	// The alarm histories, in JSON format.
@@ -84,65 +123,51 @@ type DescribeAlarmHistoryOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeAlarmHistoryOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeAlarmHistoryOutput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeAlarmHistoryOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeAlarmHistoryItems(s, schemas.DescribeAlarmHistoryOutput_AlarmHistoryItems, v.AlarmHistoryItems)
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeAlarmHistoryOutput_NextToken, *v.NextToken)
+	}
+}
+func (v *DescribeAlarmHistoryOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.DescribeAlarmHistoryOutput, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.DescribeAlarmHistoryOutput_AlarmHistoryItems:
+			return deserializeAlarmHistoryItems(d, schemas.DescribeAlarmHistoryOutput_AlarmHistoryItems, &v.AlarmHistoryItems)
+		case schemas.DescribeAlarmHistoryOutput_NextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.DescribeAlarmHistoryOutput_NextToken, v.NextToken)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDescribeAlarmHistoryMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeAlarmHistory, schemas.DescribeAlarmHistoryInput, schemas.DescribeAlarmHistoryOutput)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpDescribeAlarmHistory{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeAlarmHistory, schemas.DescribeAlarmHistoryInput, schemas.DescribeAlarmHistoryOutput), output: &DescribeAlarmHistoryOutput{}}, middleware.After); err != nil {
 		return err
-	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpDescribeAlarmHistory{}, middleware.After)
-	if err != nil {
-		return err
-	}
-	if err := addProtocolFinalizerMiddlewares(stack, options, "DescribeAlarmHistory"); err != nil {
-		return fmt.Errorf("add protocol finalizers: %v", err)
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
-	if err = addSetLoggerMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack, options); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeAlarmHistory(options.Region), middleware.Before); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -157,16 +182,11 @@ func (c *Client) addOperationDescribeAlarmHistoryMiddlewares(stack *middleware.S
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
 	return nil
 }
-
-// DescribeAlarmHistoryAPIClient is a client that implements the
-// DescribeAlarmHistory operation.
-type DescribeAlarmHistoryAPIClient interface {
-	DescribeAlarmHistory(context.Context, *DescribeAlarmHistoryInput, ...func(*Options)) (*DescribeAlarmHistoryOutput, error)
-}
-
-var _ DescribeAlarmHistoryAPIClient = (*Client)(nil)
 
 // DescribeAlarmHistoryPaginatorOptions is the paginator options for
 // DescribeAlarmHistory
@@ -232,6 +252,9 @@ func (p *DescribeAlarmHistoryPaginator) NextPage(ctx context.Context, optFns ...
 	}
 	params.MaxRecords = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.DescribeAlarmHistory(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -251,10 +274,10 @@ func (p *DescribeAlarmHistoryPaginator) NextPage(ctx context.Context, optFns ...
 	return result, nil
 }
 
-func newServiceMetadataMiddleware_opDescribeAlarmHistory(region string) *awsmiddleware.RegisterServiceMetadata {
-	return &awsmiddleware.RegisterServiceMetadata{
-		Region:        region,
-		ServiceID:     ServiceID,
-		OperationName: "DescribeAlarmHistory",
-	}
+// DescribeAlarmHistoryAPIClient is a client that implements the
+// DescribeAlarmHistory operation.
+type DescribeAlarmHistoryAPIClient interface {
+	DescribeAlarmHistory(context.Context, *DescribeAlarmHistoryInput, ...func(*Options)) (*DescribeAlarmHistoryOutput, error)
 }
+
+var _ DescribeAlarmHistoryAPIClient = (*Client)(nil)
