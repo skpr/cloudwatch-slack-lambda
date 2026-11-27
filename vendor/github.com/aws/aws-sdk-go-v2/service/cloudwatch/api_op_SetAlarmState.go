@@ -4,28 +4,32 @@ package cloudwatch
 
 import (
 	"context"
-	"fmt"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Temporarily sets the state of an alarm for testing purposes. When the updated
 // state differs from the previous value, the action configured for the appropriate
 // state is invoked. For example, if your alarm is configured to send an Amazon SNS
 // message when an alarm is triggered, temporarily changing the alarm state to
-// ALARM sends an SNS message. Metric alarms returns to their actual state quickly,
-// often within seconds. Because the metric alarm state change happens quickly, it
-// is typically only visible in the alarm's History tab in the Amazon CloudWatch
-// console or through DescribeAlarmHistory (https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_DescribeAlarmHistory.html)
-// . If you use SetAlarmState on a composite alarm, the composite alarm is not
+// ALARM sends an SNS message.
+//
+// Metric alarms returns to their actual state quickly, often within seconds.
+// Because the metric alarm state change happens quickly, it is typically only
+// visible in the alarm's History tab in the Amazon CloudWatch console or through [DescribeAlarmHistory].
+//
+// If you use SetAlarmState on a composite alarm, the composite alarm is not
 // guaranteed to return to its actual state. It returns to its actual state only
 // once any of its children alarms change state. It is also reevaluated if you
-// update its configuration. If an alarm triggers EC2 Auto Scaling policies or
-// application Auto Scaling policies, you must include information in the
-// StateReasonData parameter to enable the policy to take the correct action.
+// update its configuration.
+//
+// If an alarm triggers EC2 Auto Scaling policies or application Auto Scaling
+// policies, you must include information in the StateReasonData parameter to
+// enable the policy to take the correct action.
+//
+// [DescribeAlarmHistory]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_DescribeAlarmHistory.html
 func (c *Client) SetAlarmState(ctx context.Context, params *SetAlarmStateInput, optFns ...func(*Options)) (*SetAlarmStateOutput, error) {
 	if params == nil {
 		params = &SetAlarmStateInput{}
@@ -58,13 +62,35 @@ type SetAlarmStateInput struct {
 	// This member is required.
 	StateValue types.StateValue
 
-	// The reason that this alarm is set to this specific state, in JSON format. For
-	// SNS or EC2 alarm actions, this is just informational. But for EC2 Auto Scaling
-	// or application Auto Scaling alarm actions, the Auto Scaling policy uses the
-	// information in this field to take the correct action.
+	// The reason that this alarm is set to this specific state, in JSON format.
+	//
+	// For SNS or EC2 alarm actions, this is just informational. But for EC2 Auto
+	// Scaling or application Auto Scaling alarm actions, the Auto Scaling policy uses
+	// the information in this field to take the correct action.
 	StateReasonData *string
 
 	noSmithyDocumentSerde
+}
+
+func (v *SetAlarmStateInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.SetAlarmStateInput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *SetAlarmStateInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AlarmName != nil {
+		s.WriteString(schemas.SetAlarmStateInput_AlarmName, *v.AlarmName)
+	}
+	if v.StateReason != nil {
+		s.WriteString(schemas.SetAlarmStateInput_StateReason, *v.StateReason)
+	}
+	if v.StateReasonData != nil {
+		s.WriteString(schemas.SetAlarmStateInput_StateReasonData, *v.StateReasonData)
+	}
+	if v.StateValue != "" {
+		s.WriteString(schemas.SetAlarmStateInput_StateValue, string(v.StateValue))
+	}
 }
 
 type SetAlarmStateOutput struct {
@@ -74,68 +100,45 @@ type SetAlarmStateOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *SetAlarmStateOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(nil)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *SetAlarmStateOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *SetAlarmStateOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, nil, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationSetAlarmStateMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.SetAlarmState, schemas.SetAlarmStateInput, nil)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsquery_serializeOpSetAlarmState{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.SetAlarmState, schemas.SetAlarmStateInput, nil), output: &SetAlarmStateOutput{}}, middleware.After); err != nil {
 		return err
-	}
-	err = stack.Deserialize.Add(&awsAwsquery_deserializeOpSetAlarmState{}, middleware.After)
-	if err != nil {
-		return err
-	}
-	if err := addProtocolFinalizerMiddlewares(stack, options, "SetAlarmState"); err != nil {
-		return fmt.Errorf("add protocol finalizers: %v", err)
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
-	if err = addSetLoggerMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addUserAgentFeatureProtocolRPCV2CBOR(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack, options); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpSetAlarmStateValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opSetAlarmState(options.Region), middleware.Before); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -150,13 +153,8 @@ func (c *Client) addOperationSetAlarmStateMiddlewares(stack *middleware.Stack, o
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
-	return nil
-}
-
-func newServiceMetadataMiddleware_opSetAlarmState(region string) *awsmiddleware.RegisterServiceMetadata {
-	return &awsmiddleware.RegisterServiceMetadata{
-		Region:        region,
-		ServiceID:     ServiceID,
-		OperationName: "SetAlarmState",
+	if err = addInterceptors(stack, options); err != nil {
+		return err
 	}
+	return nil
 }

@@ -4,24 +4,27 @@ package sso
 
 import (
 	"context"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
+	"github.com/aws/aws-sdk-go-v2/service/sso/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Removes the locally stored SSO tokens from the client-side cache and sends an
 // API call to the IAM Identity Center service to invalidate the corresponding
-// server-side IAM Identity Center sign in session. If a user uses IAM Identity
-// Center to access the AWS CLI, the user’s IAM Identity Center sign in session is
-// used to obtain an IAM session, as specified in the corresponding IAM Identity
-// Center permission set. More specifically, IAM Identity Center assumes an IAM
-// role in the target account on behalf of the user, and the corresponding
-// temporary AWS credentials are returned to the client. After user logout, any
-// existing IAM role sessions that were created by using IAM Identity Center
-// permission sets continue based on the duration configured in the permission set.
-// For more information, see User authentications
-// (https://docs.aws.amazon.com/singlesignon/latest/userguide/authconcept.html) in
-// the IAM Identity Center User Guide.
+// server-side IAM Identity Center sign in session.
+//
+// If a user uses IAM Identity Center to access the AWS CLI, the user’s IAM
+// Identity Center sign in session is used to obtain an IAM session, as specified
+// in the corresponding IAM Identity Center permission set. More specifically, IAM
+// Identity Center assumes an IAM role in the target account on behalf of the user,
+// and the corresponding temporary AWS credentials are returned to the client.
+//
+// After user logout, any existing IAM role sessions that were created by using
+// IAM Identity Center permission sets continue based on the duration configured in
+// the permission set. For more information, see [User authentications]in the IAM Identity Center User
+// Guide.
+//
+// [User authentications]: https://docs.aws.amazon.com/singlesignon/latest/userguide/authconcept.html
 func (c *Client) Logout(ctx context.Context, params *LogoutInput, optFns ...func(*Options)) (*LogoutOutput, error) {
 	if params == nil {
 		params = &LogoutInput{}
@@ -39,15 +42,27 @@ func (c *Client) Logout(ctx context.Context, params *LogoutInput, optFns ...func
 
 type LogoutInput struct {
 
-	// The token issued by the CreateToken API call. For more information, see
-	// CreateToken
-	// (https://docs.aws.amazon.com/singlesignon/latest/OIDCAPIReference/API_CreateToken.html)
-	// in the IAM Identity Center OIDC API Reference Guide.
+	// The token issued by the CreateToken API call. For more information, see [CreateToken] in the
+	// IAM Identity Center OIDC API Reference Guide.
+	//
+	// [CreateToken]: https://docs.aws.amazon.com/singlesignon/latest/OIDCAPIReference/API_CreateToken.html
 	//
 	// This member is required.
 	AccessToken *string
 
 	noSmithyDocumentSerde
+}
+
+func (v *LogoutInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.LogoutRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *LogoutInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AccessToken != nil {
+		s.WriteString(schemas.LogoutRequest_accessToken, *v.AccessToken)
+	}
 }
 
 type LogoutOutput struct {
@@ -57,49 +72,39 @@ type LogoutOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *LogoutOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(nil)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *LogoutOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *LogoutOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, nil, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationLogoutMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsRestjson1_serializeOpLogout{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.Logout, schemas.LogoutRequest, nil)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsRestjson1_deserializeOpLogout{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.Logout, schemas.LogoutRequest, nil), output: &LogoutOutput{}}, middleware.After); err != nil {
 		return err
 	}
-	if err = addSetLoggerMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
-		return err
-	}
+
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
-		return err
-	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpLogoutValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opLogout(options.Region), middleware.Before); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -111,13 +116,11 @@ func (c *Client) addOperationLogoutMiddlewares(stack *middleware.Stack, options 
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
-	return nil
-}
-
-func newServiceMetadataMiddleware_opLogout(region string) *awsmiddleware.RegisterServiceMetadata {
-	return &awsmiddleware.RegisterServiceMetadata{
-		Region:        region,
-		ServiceID:     ServiceID,
-		OperationName: "Logout",
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
 	}
+	if err = addInterceptors(stack, options); err != nil {
+		return err
+	}
+	return nil
 }
